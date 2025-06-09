@@ -30,7 +30,9 @@ async function bulkDeleteProducts(req, res) {
     const userProductIds = userProducts.map((p) => p._id.toString());
 
     // 4️⃣ Delete associated images in parallel (gracefully handles individual errors)
-    const allImageIds = userProducts.flatMap((p) => p.images || []);
+    const allImageIds = userProducts.flatMap((p) =>
+      p.images.flatMap((img) => [img.original, img.thumbnail])
+    );
 
     const imageDeletionResults = await Promise.allSettled(
       allImageIds.map((id) =>

@@ -40,15 +40,20 @@ async function parseCSV(filePath) {
             description: row.description.trim(),
             price: parseFloat(row.price),
             category: row.category.trim(),
-            images: [],
-            ownerId: row.ownerId || "", // optional fallback
+            images: [
+              {
+                original: "", // can be updated later if needed
+                thumbnail: ""
+              }
+            ],
+            ownerId: row.ownerId?.trim() || "", // will be overwritten by logged-in user
             college: row.college.trim(),
-            condition: row.condition,
+            condition: row.condition.trim(),
             city: row.city.trim(),
             district: row.district?.trim() || "",
             state: row.state?.trim() || "",
             country: row.country?.trim() || "India",
-            status: row.status || "available",
+            status: row.status?.trim() || "available",
             location: {
               type: "Point",
               coordinates: [parseFloat(row.longitude), parseFloat(row.latitude)],
@@ -69,27 +74,31 @@ async function bulkUploadProducts(req, res) {
   try {
     const { validProducts, invalidRows } = await parseCSV(filePath);
 
+    let insertedProducts = [];
+
     if (validProducts.length > 0) {
-      // Attach user ID to each product
+      // Inject logged-in user as owner
       validProducts.forEach((product) => {
         product.ownerId = req.user.appwriteId;
       });
 
-      await Product.insertMany(validProducts);
+      // Save and get inserted docs (with _id)
+      insertedProducts = await Product.insertMany(validProducts);
     }
 
-    await fs.unlink(filePath); // cleanup uploaded CSV
+    await fs.unlink(filePath); // Cleanup
 
     return res.status(200).json({
       message: "Bulk upload complete",
-      inserted: validProducts.length,
+      inserted: insertedProducts.length,
       rejected: invalidRows.length,
+      productIds: insertedProducts.map((p) => p._id), // ✅ For render page
       invalidRows,
     });
   } catch (error) {
     console.error("Bulk upload failed:", error);
     try {
-      await fs.unlink(filePath); // ensure cleanup
+      await fs.unlink(filePath); // Cleanup on error
     } catch (_) {}
 
     return res.status(500).json({ error: "Bulk upload failed" });

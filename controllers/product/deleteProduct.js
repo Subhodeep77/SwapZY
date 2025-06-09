@@ -1,6 +1,5 @@
 const Product = require("../../models/Product");
 const { storage, client } = require("../../config/appwrite");
-const { Functions } = require("node-appwrite");
 
 const deleteProductWithImages = async (req, res) => {
   const productId = req.params.id;
@@ -52,17 +51,7 @@ const deleteProductWithImages = async (req, res) => {
       timestamp: new Date().toISOString(),
     });
 
-    // Trigger Appwrite Function
-    const functions = new Functions(client);
-    await functions.createExecution(
-      process.env.APPWRITE_NOTIFY_DELETE_FUNCTION_ID,
-      JSON.stringify({
-        productId: product._id,
-        productName: product.title,
-        deletedBy: req.user.email,
-        timestamp: new Date().toISOString(),
-      })
-    );
+    // TODO :- Trigger Appwrite Function
 
     res.status(200).json({
       message: "Product and associated images deleted successfully",
