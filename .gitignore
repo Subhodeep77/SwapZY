@@ -1,0 +1,47 @@
+# === Logs ===
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# === Node ===
+node_modules
+dist
+dist-ssr
+
+# === Env Files ===
+.env
+.env.*
+*.local
+
+# === Appwrite ===
+appwrite.json
+appwrite.env
+appwrite/functions/*/node_modules/
+appwrite/functions/*/dist/
+
+# === MongoDB Dumps ===
+dump/
+
+# === Temp/Cache/PID ===
+.cache/
+tmp/
+temp/
+*.pid
+
+# === Uploads (Optional) ===
+uploads/
+
+# === IDEs & OS ===
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
