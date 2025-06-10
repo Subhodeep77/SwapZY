@@ -54,4 +54,14 @@ const productSchema = new mongoose.Schema(
 // 🔍 Enable geospatial index
 productSchema.index({ location: "2dsphere" });
 
+// 🚀 Useful indexes for filtering/sorting/searching
+productSchema.index({ status: 1 });                // Filter available products
+productSchema.index({ category: 1 });              // Category filters
+productSchema.index({ price: 1 });                 // Sorting by price
+productSchema.index({ createdAt: -1 });            // Sorting by latest
+productSchema.index({ condition: 1 });             // Condition filters
+
+// 🔍 Full-text-like search (regex-based)
+productSchema.index({ title: "text", description: "text" });
+
 module.exports = mongoose.model("Product", productSchema);
