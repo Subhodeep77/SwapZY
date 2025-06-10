@@ -1,22 +1,29 @@
 const Product = require("../../models/Product");
 
-// Constants for expiration
 const EXPIRATION_DAYS = 45;
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 const markProductStatus = async (req, res) => {
   const productId = req.params.id;
-  const ownerId = req.user.appwriteId;
+  const ownerId = req.user?.appwriteId;
   const { status } = req.body;
 
   const validStatuses = ["sold", "expired"];
 
   try {
-    // Allow only sold or expired to be marked manually
+    if (!ownerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         error: "Invalid status. Only 'sold' or 'expired' are allowed.",
       });
+    }
+
+    // Validate ObjectId format
+    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ error: "Invalid product ID format." });
     }
 
     const product = await Product.findById(productId);
@@ -28,14 +35,12 @@ const markProductStatus = async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
     }
 
-    // Prevent changing status if already marked sold/expired
-    if (product.status === "sold" || product.status === "expired") {
+    if (["sold", "expired"].includes(product.status)) {
       return res.status(400).json({
-        error: `Cannot change status once it's marked as '${product.status}'`,
+        error: `Cannot change status once it's marked as '${product.status}'.`,
       });
     }
 
-    // Auto-expire if product is older than 45 days and still available
     const createdAt = new Date(product.createdAt);
     const now = new Date();
     const daysSinceCreation = (now - createdAt) / MS_PER_DAY;
@@ -49,17 +54,16 @@ const markProductStatus = async (req, res) => {
       });
     }
 
-    // Manual mark to sold or expired
     product.status = status;
     await product.save();
 
     res.status(200).json({
-      message: `Product marked as '${status}'`,
+      message: `Product marked as '${status}'.`,
       product,
     });
   } catch (err) {
     console.error("Mark status error:", err.message);
-    res.status(500).json({ error: "Failed to mark product status" });
+    res.status(500).json({ error: "Failed to mark product status." });
   }
 };
 

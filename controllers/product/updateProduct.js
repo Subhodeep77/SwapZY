@@ -2,10 +2,15 @@ const Product = require("../../models/Product");
 const { storage, ID } = require("../../config/appwrite");
 const sharp = require("sharp");
 const upload = require("../../utils/multerConfig");
+const mongoose = require("mongoose");
 
 const updateProductWithImages = async (req, res) => {
   const productId = req.params.id;
   const ownerId = req.user.appwriteId;
+
+  if (!mongoose.Types.ObjectId.isValid(productId)) {
+    return res.status(400).json({ error: "Invalid product ID format." });
+  }
 
   try {
     const product = await Product.findById(productId);
@@ -14,7 +19,9 @@ const updateProductWithImages = async (req, res) => {
       return res.status(403).json({ error: "Not authorized" });
 
     // ✅ Step 1: Validate image IDs to delete
-    const imagesToDelete = req.body.imagesToDelete || []; // These should be original image IDs
+    const imagesToDelete = Array.isArray(req.body.imagesToDelete)
+      ? req.body.imagesToDelete
+      : [];
     const validImageIds = product.images.map((img) => img.original.toString());
     const invalidDeletions = imagesToDelete.filter(
       (id) => !validImageIds.includes(id)
@@ -31,7 +38,6 @@ const updateProductWithImages = async (req, res) => {
     const retainedImages = product.images.filter(
       (img) => !imagesToDelete.includes(img.original)
     );
-
     const deletedImagePairs = product.images.filter((img) =>
       imagesToDelete.includes(img.original)
     );
@@ -46,7 +52,6 @@ const updateProductWithImages = async (req, res) => {
       );
     }
     await Promise.all(deletePromises);
-
     product.images = retainedImages;
 
     // ✅ Step 3: Image limit check
@@ -59,7 +64,14 @@ const updateProductWithImages = async (req, res) => {
 
     // ✅ Step 4: Upload + compress new images
     const newImages = [];
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+
     for (const file of incomingFiles) {
+      if (!file?.buffer) continue;
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        return res.status(401).json({ error: "Invalid mime type" });
+      }
+
       const originalBuffer = await sharp(file.buffer)
         .resize(800)
         .jpeg({ quality: 80 })
@@ -69,7 +81,7 @@ const updateProductWithImages = async (req, res) => {
         process.env.APPWRITE_BUCKET_ID,
         ID.unique(),
         Buffer.from(originalBuffer),
-        file.mimetype,
+        "image/jpeg",
         ["read:*"]
       );
 
@@ -82,7 +94,7 @@ const updateProductWithImages = async (req, res) => {
         process.env.APPWRITE_BUCKET_ID,
         ID.unique(),
         Buffer.from(thumbnailBuffer),
-        file.mimetype,
+        "image/jpeg",
         ["read:*"]
       );
 
@@ -111,10 +123,16 @@ const updateProductWithImages = async (req, res) => {
       longitude,
     } = req.body;
 
-    if (title) product.title = title;
-    if (description) product.description = description;
-    if (price) product.price = parseFloat(price);
-    if (category) product.category = category;
+    if (title) product.title = title.trim();
+    if (description) product.description = description.trim();
+    if (price !== undefined) {
+      const parsed = parseFloat(price);
+      if (isNaN(parsed) || parsed < 0) {
+        return res.status(400).json({ error: "Invalid price value." });
+      }
+      product.price = parsed;
+    }
+    if (category) product.category = category.trim();
 
     const validConditions = ["new", "like-new", "used"];
     if (condition) {
@@ -140,13 +158,13 @@ const updateProductWithImages = async (req, res) => {
       product.status = status;
     }
 
-    if (college) product.college = college;
-    if (city) product.city = city;
-    if (district) product.district = district;
-    if (state) product.state = state;
-    if (country) product.country = country;
+    if (college) product.college = college.trim();
+    if (city) product.city = city.trim();
+    if (district) product.district = district.trim();
+    if (state) product.state = state.trim();
+    if (country) product.country = country.trim();
 
-    if (latitude && longitude) {
+    if (latitude?.trim() !== "" && longitude?.trim() !== "") {
       const lat = parseFloat(latitude);
       const lon = parseFloat(longitude);
       if (isNaN(lat) || isNaN(lon)) {

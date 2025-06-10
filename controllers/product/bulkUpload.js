@@ -10,6 +10,7 @@ function validateRow(row) {
   if (!row.title || row.title.trim() === "") errors.push("Missing title");
   if (!row.description || row.description.trim() === "") errors.push("Missing description");
   if (!row.price || isNaN(Number(row.price))) errors.push("Invalid or missing price");
+  if (row.price < 0 || row.price > 100000) errors.push("Price out of acceptable range");
   if (!row.category || row.category.trim() === "") errors.push("Missing category");
   if (!row.college || row.college.trim() === "") errors.push("Missing college");
   if (!row.condition || !["new", "like-new", "used"].includes(row.condition)) errors.push("Invalid condition");
@@ -77,13 +78,37 @@ async function bulkUploadProducts(req, res) {
     let insertedProducts = [];
 
     if (validProducts.length > 0) {
-      // Inject logged-in user as owner
+      // 🔐 Inject logged-in user as owner
       validProducts.forEach((product) => {
         product.ownerId = req.user.appwriteId;
       });
 
-      // Save and get inserted docs (with _id)
-      insertedProducts = await Product.insertMany(validProducts);
+      // 🔍 Pre-check for duplicates
+      const titles = validProducts.map(p => p.title);
+      const existing = await Product.find({
+        title: { $in: titles },
+        ownerId: req.user.appwriteId
+      }).lean();
+
+      const existingTitleSet = new Set(existing.map(e => e.title));
+
+      // ❌ Remove duplicates from validProducts and push them to invalidRows
+      const uniqueProducts = [];
+      for (const product of validProducts) {
+        if (!existingTitleSet.has(product.title)) {
+          uniqueProducts.push(product);
+        } else {
+          invalidRows.push({
+            row: product,
+            errors: ["Duplicate title for this user"]
+          });
+        }
+      }
+
+      // 💾 Save the remaining products
+      if (uniqueProducts.length > 0) {
+        insertedProducts = await Product.insertMany(uniqueProducts, { ordered: false });
+      }
     }
 
     await fs.unlink(filePath); // Cleanup
@@ -92,7 +117,7 @@ async function bulkUploadProducts(req, res) {
       message: "Bulk upload complete",
       inserted: insertedProducts.length,
       rejected: invalidRows.length,
-      productIds: insertedProducts.map((p) => p._id), // ✅ For render page
+      productIds: insertedProducts.map((p) => p._id),
       invalidRows,
     });
   } catch (error) {

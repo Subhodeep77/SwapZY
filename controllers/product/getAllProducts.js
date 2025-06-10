@@ -22,11 +22,12 @@ async function getAllProducts(req, res) {
       status: "available", // ✅ Only show available products
     };
 
-    // 🔍 Full-text-like search
-    if (search) {
+    // 🔍 Full-text-like search (safe)
+    if (search?.trim()) {
+      const keyword = search.trim();
       filters.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
+        { title: { $regex: keyword, $options: "i" } },
+        { description: { $regex: keyword, $options: "i" } },
       ];
     }
 
@@ -39,15 +40,21 @@ async function getAllProducts(req, res) {
       if (maxPrice) filters.price.$lte = Number(maxPrice);
     }
 
-    // 🔃 Sorting logic
+    // 🔃 Sorting logic with fallback
+    const validSorts = ["latest", "price_low", "price_high"];
     let sortOption = {};
     if (sort === "latest") sortOption = { createdAt: -1 };
     else if (sort === "price_low") sortOption = { price: 1 };
     else if (sort === "price_high") sortOption = { price: -1 };
+    else if (!validSorts.includes(sort)) sortOption = { createdAt: -1 };
 
     const skip = (safePage - 1) * safeLimit;
 
-    // ⚡ Use .lean() for performance and skip .toObject()
+    // 🛠 Debug (Optional, remove in production)
+    console.log("Query filters:", filters);
+    console.log("Sort:", sortOption);
+
+    // ⚡ Use .lean() for performance
     const [products, total] = await Promise.all([
       Product.find(filters)
         .lean()
@@ -62,6 +69,18 @@ async function getAllProducts(req, res) {
       ...product,
       isMine: currentUserId ? product.ownerId === currentUserId : false,
     }));
+
+    // 📭 Optional UX: No products found message
+    if (products.length === 0) {
+      return res.status(200).json({
+        message: "No products found",
+        products: [],
+        total: 0,
+        page: safePage,
+        limit: safeLimit,
+        totalPages: 0,
+      });
+    }
 
     return res.status(200).json({
       products: enriched,

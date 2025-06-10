@@ -5,30 +5,35 @@ const getProductById = async (req, res) => {
     const productId = req.params.id;
 
     // ✅ Validate MongoDB ObjectId format
-    if (!productId.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!/^[0-9a-fA-F]{24}$/.test(productId)) {
       return res.status(400).json({ error: "Invalid product ID format." });
     }
 
-    const product = await Product.findById(productId);
+    // ⚡ Use lean() for faster read & smaller payload
+    const product = await Product.findById(productId).lean();
 
     if (!product) {
       return res.status(404).json({ error: "Product not found." });
     }
 
-    // ✅ If product is not available, restrict guest view
-    if (product.status !== "available") {
-      // allow owner to view their own sold/expired item
-      if (!req.user || req.user.appwriteId !== product.ownerId) {
-        return res.status(404).json({ error: "Product is not available." });
-      }
+    const currentUserId = req.user?.appwriteId;
+
+    // ✅ Restrict access to sold/expired items unless it's user's own
+    if (product.status !== "available" && currentUserId !== product.ownerId) {
+      return res.status(404).json({ error: "Product is not available." });
     }
 
-    const isMine = req.user?.appwriteId === product.ownerId;
+    // ✅ Attach isMine and sanitize images
+    const enriched = {
+      ...product,
+      isMine: currentUserId === product.ownerId,
+      images: product.images || [],
+    };
 
-    res.status(200).json({ product, isMine });
+    return res.status(200).json({ product: enriched });
   } catch (err) {
     console.error("Error fetching product by ID:", err.message);
-    res.status(500).json({ error: "Server error." });
+    return res.status(500).json({ error: "Server error." });
   }
 };
 
