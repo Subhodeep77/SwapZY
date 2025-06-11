@@ -1,5 +1,5 @@
-const Wishlist = require("../../models/Wishlist");
-const Product = require("../../models/Product");
+const Wishlist = require("../models/Wishlist");
+const Product = require("../models/Product");
 
 const addToWishlist = async (req, res) => {
   const userId = req.user.appwriteId;
@@ -67,16 +67,40 @@ const getMyWishlist = async (req, res) => {
   try {
     const wishlistItems = await Wishlist.find({ userId }).populate("productId");
 
-    const filtered = wishlistItems
-      .filter(item => item.productId) // Filter out if product is deleted
-      .map(item => item.productId);  // Return only product info
+    // Filter out deleted/invalid products
+    const validProducts = wishlistItems
+      .filter(item => item.productId && !["sold", "expired"].includes(item.productId.status));
 
-    res.status(200).json({ wishlist: filtered });
+    // Remove stale wishlist entries for sold/expired/deleted products
+    const invalidProductIds = wishlistItems
+      .filter(item => !item.productId || ["sold", "expired"].includes(item.productId.status))
+      .map(item => item.productId?._id || item.productId); // Handles both null and ObjectId
+
+    if (invalidProductIds.length > 0) {
+      await Wishlist.deleteMany({ userId, productId: { $in: invalidProductIds } });
+    }
+
+    // Add wishlist count for each product
+    const productsWithCount = await Promise.all(
+      validProducts.map(async (item) => {
+        const count = await Wishlist.countDocuments({ productId: item.productId._id });
+        const productWithCount = {
+          ...item.productId.toObject(),
+          wishlistCount: count,
+        };
+        return productWithCount;
+      })
+    );
+
+    res.status(200).json({ wishlist: productsWithCount });
   } catch (err) {
     console.error("Fetch wishlist error:", err.message);
     res.status(500).json({ error: "Failed to fetch wishlist." });
   }
 };
 
-
-module.exports = { addToWishlist, removeFromWishlist, getMyWishlist };
+module.exports = {
+  addToWishlist,
+  removeFromWishlist,
+  getMyWishlist,
+};

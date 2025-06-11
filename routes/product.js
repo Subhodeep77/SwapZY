@@ -8,7 +8,7 @@ const path = require('path');
 const optionalAppwriteToken = require("../middlewares/optionalAppwriteToken");
 const uploadCSV = multer({
   dest: path.join(__dirname, '..', 'uploads'),
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
@@ -85,11 +85,10 @@ router.patch(
   markStatus.markProductStatus
 );
 
-router.all(
-  "*", 
-  (req, res) => {
-  res.status(404).json({ error: "Route not found" });
-});
-
-
+// router.all(
+//   "*", 
+//   (_req, res) => {
+//   res.status(404).json({ error: "Route not found" });
+// });
+console.log("Loaded product routes");
 module.exports = router;

@@ -1,4 +1,5 @@
 const Product = require("../../models/Product");
+const Wishlist = require("../../models/Wishlist");
 
 async function getMyProducts(req, res) {
   try {
@@ -11,7 +12,7 @@ async function getMyProducts(req, res) {
       page = 1,
       limit = 10,
       sort,
-      status = "available", // optional override
+      status = "available",
     } = req.query;
 
     const safePage = Math.max(1, parseInt(page));
@@ -30,18 +31,26 @@ async function getMyProducts(req, res) {
     const skip = (safePage - 1) * safeLimit;
 
     const [products, total] = await Promise.all([
-      Product.find(filters)
-        .sort(sortOption)
-        .skip(skip)
-        .limit(safeLimit)
-        .lean(),
+      Product.find(filters).sort(sortOption).skip(skip).limit(safeLimit).lean(),
       Product.countDocuments(filters),
     ]);
+
+    // 📊 Get wishlist counts for all product IDs
+    const productIds = products.map(p => p._id);
+    const wishlistCounts = await Wishlist.aggregate([
+      { $match: { productId: { $in: productIds } } },
+      { $group: { _id: "$productId", count: { $sum: 1 } } }
+    ]);
+    const countMap = wishlistCounts.reduce((acc, item) => {
+      acc[item._id.toString()] = item.count;
+      return acc;
+    }, {});
 
     const enriched = products.map((product) => ({
       ...product,
       canEdit: true,
       canDelete: true,
+      wishlistCount: countMap[product._id.toString()] || 0,
     }));
 
     return res.status(200).json({

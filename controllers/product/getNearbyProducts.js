@@ -1,16 +1,15 @@
 const Product = require("../../models/Product");
+const Wishlist = require("../../models/Wishlist");
 
 const getNearbyProducts = async (req, res) => {
   try {
     const { lng, lat, college, city, district, state } = req.query;
     const currentUserId = req.user?.appwriteId;
 
-    // 1. Validate required location fields
     if (!lng || !lat || !college || !city || !state) {
       return res.status(400).json({ error: "Missing required location fields." });
     }
 
-    // 2. Parse and validate coordinates
     const longitude = parseFloat(lng);
     const latitude = parseFloat(lat);
     if (isNaN(longitude) || isNaN(latitude)) {
@@ -22,18 +21,16 @@ const getNearbyProducts = async (req, res) => {
       coordinates: [longitude, latitude],
     };
 
-    // 3. Define expanding search levels (college → state → general nearby)
     const searchLevels = [
-      { filter: { college }, maxDistance: 5 * 1000 },       // 🎓 Same college (~5 km)
-      { filter: { city }, maxDistance: 15 * 1000 },         // 🏙️ Same city (~15 km)
-      district ? { filter: { district }, maxDistance: 25 * 1000 } : null, // 🏞️ Same district
-      { filter: { state }, maxDistance: 50 * 1000 },        // 🗺️ Same state (~50 km)
-      { filter: {}, maxDistance: 100 * 1000 },              // 🌐 Fallback nearby (~100 km)
+      { filter: { college }, maxDistance: 5 * 1000 },
+      { filter: { city }, maxDistance: 15 * 1000 },
+      district ? { filter: { district }, maxDistance: 25 * 1000 } : null,
+      { filter: { state }, maxDistance: 50 * 1000 },
+      { filter: {}, maxDistance: 100 * 1000 },
     ].filter(Boolean);
 
     let products = [];
 
-    // 4. Attempt to find results in increasingly larger radius/area
     for (const level of searchLevels) {
       const result = await Product.aggregate([
         {
@@ -58,11 +55,31 @@ const getNearbyProducts = async (req, res) => {
       }
     }
 
-    // 5. Enrich with isMine and clean image URLs
+    const productIds = products.map((p) => p._id);
+
+    // Get wishlist entries for these products
+    const wishlistEntries = await Wishlist.find({
+      productId: { $in: productIds },
+    }).select("productId userId");
+
+    // Prepare map for count and user-specific wishlist detection
+    const wishlistCountMap = {};
+    const wishlistedIds = new Set();
+
+    wishlistEntries.forEach((entry) => {
+      const id = entry.productId.toString();
+      wishlistCountMap[id] = (wishlistCountMap[id] || 0) + 1;
+      if (entry.userId.toString() === currentUserId) {
+        wishlistedIds.add(id);
+      }
+    });
+
     const enriched = products.map((product) => ({
       ...product,
       isMine: currentUserId === product.ownerId,
-      images: product.images || [], // ensure images are present
+      isWishlisted: wishlistedIds.has(product._id.toString()),
+      wishlistCount: wishlistCountMap[product._id.toString()] || 0,
+      images: product.images || [],
     }));
 
     res.status(200).json(enriched);

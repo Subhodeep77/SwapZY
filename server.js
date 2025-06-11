@@ -41,6 +41,10 @@ if (cluster.isPrimary) {
   app.use(cors());
   app.use(express.json());
   app.use(cookieParser());
+
+  // ✅ Health check endpoint (very early)
+  app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
+
   app.use((err, req, res, next) => {
     if (
       err instanceof multer.MulterError ||
@@ -60,10 +64,21 @@ if (cluster.isPrimary) {
   app.use("/api/wishlist", wishlistRoutes);
 
   // Connect to MongoDB
+  // Connect to MongoDB
   connectDB()
     .then(() => {
       httpServer.listen(process.env.PORT || 3000, () => {
         console.log(`Server running on port ${process.env.PORT || 3000}`);
+      });
+
+      // 🔻 Graceful shutdown
+      process.on("SIGINT", () => {
+        console.log("🛑 Shutting down gracefully...");
+        // Close server, DB connections, clean up if needed
+        httpServer.close(() => {
+          console.log("✅ HTTP server closed.");
+          process.exit(0);
+        });
       });
     })
     .catch((err) => {

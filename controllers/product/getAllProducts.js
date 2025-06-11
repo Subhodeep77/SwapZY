@@ -1,4 +1,5 @@
 const Product = require("../../models/Product");
+const Wishlist = require("../../models/Wishlist");
 
 async function getAllProducts(req, res) {
   try {
@@ -19,10 +20,9 @@ async function getAllProducts(req, res) {
     const safeLimit = Math.max(1, parseInt(limit));
 
     const filters = {
-      status: "available", // ✅ Only show available products
+      status: "available",
     };
 
-    // 🔍 Full-text-like search (safe)
     if (search?.trim()) {
       const keyword = search.trim();
       filters.$or = [
@@ -40,7 +40,6 @@ async function getAllProducts(req, res) {
       if (maxPrice) filters.price.$lte = Number(maxPrice);
     }
 
-    // 🔃 Sorting logic with fallback
     const validSorts = ["latest", "price_low", "price_high"];
     let sortOption = {};
     if (sort === "latest") sortOption = { createdAt: -1 };
@@ -50,37 +49,35 @@ async function getAllProducts(req, res) {
 
     const skip = (safePage - 1) * safeLimit;
 
-    // 🛠 Debug (Optional, remove in production)
-    console.log("Query filters:", filters);
-    console.log("Sort:", sortOption);
-
-    // ⚡ Use .lean() for performance
     const [products, total] = await Promise.all([
-      Product.find(filters)
-        .lean()
-        .sort(sortOption)
-        .skip(skip)
-        .limit(safeLimit),
+      Product.find(filters).lean().sort(sortOption).skip(skip).limit(safeLimit),
       Product.countDocuments(filters),
     ]);
 
-    // 🧠 Mark product as mine if the ownerId matches
+    const productIds = products.map((p) => p._id);
+
+    // Fetch wishlist entries for the fetched products
+    const wishlistEntries = await Wishlist.find({
+      productId: { $in: productIds },
+    }).select("productId userId");
+
+    const wishlistCountMap = {};
+    const wishlistedIds = new Set();
+
+    wishlistEntries.forEach((entry) => {
+      const id = entry.productId.toString();
+      wishlistCountMap[id] = (wishlistCountMap[id] || 0) + 1;
+      if (entry.userId.toString() === currentUserId) {
+        wishlistedIds.add(id);
+      }
+    });
+
     const enriched = products.map((product) => ({
       ...product,
       isMine: currentUserId ? product.ownerId === currentUserId : false,
+      isWishlisted: wishlistedIds.has(product._id.toString()),
+      wishlistCount: wishlistCountMap[product._id.toString()] || 0,
     }));
-
-    // 📭 Optional UX: No products found message
-    if (products.length === 0) {
-      return res.status(200).json({
-        message: "No products found",
-        products: [],
-        total: 0,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: 0,
-      });
-    }
 
     return res.status(200).json({
       products: enriched,

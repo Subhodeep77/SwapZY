@@ -81,7 +81,7 @@ const updateProductWithImages = async (req, res) => {
         process.env.APPWRITE_BUCKET_ID,
         ID.unique(),
         Buffer.from(originalBuffer),
-        "image/jpeg",
+        file.mimetype,
         ["read:*"]
       );
 
@@ -94,7 +94,7 @@ const updateProductWithImages = async (req, res) => {
         process.env.APPWRITE_BUCKET_ID,
         ID.unique(),
         Buffer.from(thumbnailBuffer),
-        "image/jpeg",
+        file.mimetype,
         ["read:*"]
       );
 
