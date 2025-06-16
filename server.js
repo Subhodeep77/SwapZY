@@ -13,6 +13,7 @@ const dashboardRoutes = require("./routes/dashboard");
 const productRoutes = require("./routes/product");
 const userRoutes = require("./routes/user");
 const wishlistRoutes = require("./routes/wishlist");
+const { globalLimiter } = require("./middlewares/rateLimiter");
 
 dotenv.config();
 
@@ -38,6 +39,7 @@ if (cluster.isPrimary) {
     cluster.fork(); // Respawn a new worker
   });
 } else {
+  app.use(globalLimiter);
   app.use(cors());
   app.use(express.json());
   app.use(cookieParser());

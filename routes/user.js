@@ -11,6 +11,5 @@ const upload = multer();
 router.post("/init", verifyAppwriteToken, upload.single("avatar"), initUserProfile);
 router.delete("/delete-account", verifyAppwriteToken, deleteUserAccount);
 router.post('/user/update', verifyAppwriteToken, updateUserProfile);
-//router.all( "*", (_req, res) => {res.status(404).json({ error: "Route not found" });});
 console.log("Loaded user routes");
 module.exports = router;

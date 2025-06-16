@@ -10,10 +10,10 @@ const productSchema = new mongoose.Schema(
       {
         original: { type: String, required: true },
         thumbnail: { type: String, required: true },
-      }
+      },
     ], // Appwrite file IDs
     ownerId: { type: String, required: true }, // Appwrite user ID
-    // 📦 Product status: available, sold, expired
+
     status: {
       type: String,
       enum: ["available", "sold", "expired"],
@@ -27,7 +27,6 @@ const productSchema = new mongoose.Schema(
       default: "used",
     },
 
-    // 📍 Location Metadata
     city: { type: String, required: true },
     district: { type: String },
     state: { type: String },
@@ -45,6 +44,12 @@ const productSchema = new mongoose.Schema(
         required: true,
       },
     },
+
+    // 👁️ Views counter
+    views: {
+      type: [String], // Array of Appwrite userIds or IPs
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -55,11 +60,11 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ location: "2dsphere" });
 
 // 🚀 Useful indexes for filtering/sorting/searching
-productSchema.index({ status: 1 });                // Filter available products
-productSchema.index({ category: 1 });              // Category filters
-productSchema.index({ price: 1 });                 // Sorting by price
-productSchema.index({ createdAt: -1 });            // Sorting by latest
-productSchema.index({ condition: 1 });             // Condition filters
+productSchema.index({ status: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ price: 1 });
+productSchema.index({ createdAt: -1 });
+productSchema.index({ condition: 1 });
 
 // 🔍 Full-text-like search (regex-based)
 productSchema.index({ title: "text", description: "text" });

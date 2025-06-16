@@ -12,7 +12,7 @@ const getProductById = async (req, res) => {
 
     const currentUserId = req.user?.appwriteId;
 
-    // ⚡ Use lean() for faster read & smaller payload
+    // 📦 Fetch the product
     const product = await Product.findById(productId).lean();
 
     if (!product) {
@@ -24,28 +24,37 @@ const getProductById = async (req, res) => {
       return res.status(404).json({ error: "Product is not available." });
     }
 
+    // 👁️ add user ids to views  (non-owner only)
+    const viewerId = req.user?.appwriteId || req.ip;
+
+    if (!product.views.includes(viewerId) && viewerId !== product.ownerId) {
+      await Product.findByIdAndUpdate(productId, {
+        $addToSet: { views: viewerId },
+      });
+    }
+ 
     // 📊 Get wishlist count
     const wishlistCount = await Wishlist.countDocuments({ productId });
 
-    // 📌 Find which products this user has wishlisted
-    let wishlistedIds = [];
+    // 📌 Check if this user has wishlisted the product
+    let isWishlisted = false;
     if (currentUserId) {
-      const wishlistEntries = await Wishlist.find({
+      const found = await Wishlist.findOne({
         userId: currentUserId,
-      }).select("productId");
-      wishlistedIds = wishlistEntries.map((entry) =>
-        entry.productId.toString()
-      );
+        productId,
+      });
+      isWishlisted = !!found;
     }
 
     // ✅ Enrich and return
-    const enriched = products.map((product) => ({
+    const enriched = {
       ...product,
       isMine: currentUserId === product.ownerId,
-      isWishlisted: wishlistedIds.includes(product._id.toString()),
+      isWishlisted,
       wishlistCount,
       images: product.images || [],
-    }));
+      totalViews: (product.views || []).length,
+    };
 
     return res.status(200).json({ product: enriched });
   } catch (err) {

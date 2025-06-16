@@ -6,6 +6,7 @@ const { createProduct, deleteProduct, updateProduct, bulkUpload, bulkDelete, get
 const multer = require('multer');
 const path = require('path');
 const optionalAppwriteToken = require("../middlewares/optionalAppwriteToken");
+const { createProductLimiter, deleteProductLimiter, updateProductLimiter, bulkUploadLimiter, bulkDeleteLimiter, markStatusLimiter } = require("../middlewares/rateLimiter");
 const uploadCSV = multer({
   dest: path.join(__dirname, '..', 'uploads'),
   fileFilter: (_req, file, cb) => {
@@ -22,6 +23,7 @@ const uploadCSV = multer({
 router.post(
   "/create",
   verifyAppwriteToken,
+  createProductLimiter,
   createProduct.upload,
   createProduct.createProductWithImages
 );
@@ -29,12 +31,14 @@ router.post(
 router.delete(
   "/:id",
   verifyAppwriteToken,
+  deleteProductLimiter,
   deleteProduct.deleteProductWithImages
 );
 
 router.put(
   "/:id",
   verifyAppwriteToken,
+  updateProductLimiter,
   updateProduct.upload, // for new uploads
   updateProduct.updateProductWithImages
 );
@@ -43,6 +47,7 @@ router.put(
 router.post(
   '/bulk-upload',
   verifyAppwriteToken, // only authenticated users can upload
+  bulkUploadLimiter,
   uploadCSV.single('file'), // expecting a single file field named 'file'
   bulkUpload.bulkUploadProducts
 );
@@ -50,7 +55,8 @@ router.post(
 
 router.delete(
     "/bulk", 
-    verifyAppwriteToken, 
+    verifyAppwriteToken,
+    bulkDeleteLimiter, 
     bulkDelete.bulkDeleteProducts
 );
 
@@ -81,14 +87,10 @@ router.get(
 
 router.patch(
   "/:id/status",
+  markStatusLimiter,
   verifyAppwriteToken, 
   markStatus.markProductStatus
 );
 
-// router.all(
-//   "*", 
-//   (_req, res) => {
-//   res.status(404).json({ error: "Route not found" });
-// });
 console.log("Loaded product routes");
 module.exports = router;

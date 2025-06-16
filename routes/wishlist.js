@@ -2,19 +2,18 @@ const express = require("express");
 const router = express.Router();
 const { addToWishlist, removeFromWishlist, getMyWishlist } = require("../controllers/wishlist");
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
+const { addToWishlistLimiter, getWishlistLimiter } = require("../middlewares/rateLimiter");
 
 // All routes require user to be logged in
 router.use(verifyAppwriteToken);
-
 // Add to wishlist
-router.post("/", addToWishlist);
+router.post("/", addToWishlistLimiter, addToWishlist);
 
 // Remove from wishlist
-router.delete("/:productId", removeFromWishlist);
+router.delete("/:productId", addToWishlistLimiter, removeFromWishlist);
 
 // Get current user's wishlist
-router.get("/", getMyWishlist);
+router.get("/", getWishlistLimiter, getMyWishlist);
 
-//router.all("*", (_req, res) => {res.status(404).json({ error: "Route not found" });});
 console.log("Loaded wishlist routes");
 module.exports = router;
