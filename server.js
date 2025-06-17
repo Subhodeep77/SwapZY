@@ -14,6 +14,7 @@ const productRoutes = require("./routes/product");
 const userRoutes = require("./routes/user");
 const wishlistRoutes = require("./routes/wishlist");
 const { globalLimiter } = require("./middlewares/rateLimiter");
+const adminRoutes = require("./routes/admin");
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ if (cluster.isPrimary) {
   app.use("/api/products", productRoutes);
   app.use("/api/user", userRoutes);
   app.use("/api/wishlist", wishlistRoutes);
+  app.use("/admin", adminRoutes);
 
   // Connect to MongoDB
   // Connect to MongoDB

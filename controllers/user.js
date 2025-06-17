@@ -1,8 +1,12 @@
-// controllers/userController.js
 const { cleanupUserProducts } = require("../utils/cleanup");
-const { users, storage, ID, databases } = require("../config/appwrite"); // ✅ Use admin SDK
+const { users, storage, ID } = require("../config/appwrite");
 const sharp = require("sharp");
-const { createUser, getUserByAppwriteId } = require("../services/user"); // Import both services
+const {
+  createUser,
+  getUserByAppwriteId,
+  updateUser,
+  deleteUser,
+} = require("../services/user");
 
 async function initUserProfile(req, res) {
   try {
@@ -10,13 +14,13 @@ async function initUserProfile(req, res) {
     const { appwriteId, email } = req.user;
     const file = req.file;
 
-    // Step 1: Check if user already exists
+    // Check if user already exists
     const existingUser = await getUserByAppwriteId(appwriteId);
     if (existingUser) {
       return res.status(409).json({ message: "User profile already exists" });
     }
 
-    // Step 2: Compress avatar if file provided
+    // Compress avatar
     let avatarId = null;
     if (file) {
       const compressedImageBuffer = await sharp(file.buffer)
@@ -35,7 +39,6 @@ async function initUserProfile(req, res) {
       avatarId = uploaded.$id;
     }
 
-    // Step 3: Create user profile
     const createdUser = await createUser({
       appwriteId,
       name,
@@ -44,12 +47,12 @@ async function initUserProfile(req, res) {
       bio,
       college,
       contact,
-      // role omitted, uses default "USER"
     });
 
-    res
-      .status(201)
-      .json({ message: "User profile created", user: createdUser });
+    res.status(201).json({
+      message: "User profile created",
+      user: createdUser,
+    });
   } catch (error) {
     console.error("User init failed:", error);
     res.status(500).json({ error: "Failed to initialize user profile" });
@@ -58,21 +61,24 @@ async function initUserProfile(req, res) {
 
 async function deleteUserAccount(req, res) {
   try {
-    const userId = req.user.appwriteId; // ✅ Extracted from token middleware
+    const appwriteId = req.user?.appwriteId;
 
-    if (!userId) {
+    if (!appwriteId) {
       return res.status(401).json({ error: "Unauthorized request" });
     }
 
-    // ✅ Step 1: Cleanup all related products/images
-    await cleanupUserProducts(userId);
+    const existingUser = await getUserByAppwriteId(appwriteId);
+    if (!existingUser || existingUser.isDeleted) {
+      return res.status(404).json({ error: "User not found or already deleted" });
+    }
 
-    // ✅ Step 2: Delete the user via Admin SDK
-    await users.delete(userId); // 💥 Secure and correct way
+    // Step 1: Cleanup all related products/images
+    await cleanupUserProducts(appwriteId);
 
-    return res
-      .status(200)
-      .json({ message: "User and data deleted successfully." });
+    // Step 2: Delete the user (from both Auth and DB)
+    await deleteUser(appwriteId);
+
+    return res.status(200).json({ message: "User and data deleted successfully." });
   } catch (error) {
     console.error("User deletion error:", {
       message: error.message,
@@ -82,7 +88,7 @@ async function deleteUserAccount(req, res) {
   }
 }
 
-const updateUserProfile = async (req, res) => {
+async function updateUserProfile(req, res) {
   try {
     const appwriteId = req.user?.appwriteId;
     if (!appwriteId) {
@@ -90,8 +96,8 @@ const updateUserProfile = async (req, res) => {
     }
 
     const existingUser = await getUserByAppwriteId(appwriteId);
-    if (!existingUser) {
-      return res.status(404).json({ error: "User not found" });
+    if (!existingUser || existingUser.isDeleted) {
+      return res.status(404).json({ error: "User not found or access denied (banned)" });
     }
 
     const { name, email, avatar, bio, college, contact } = req.body;
@@ -104,22 +110,20 @@ const updateUserProfile = async (req, res) => {
     if (college) updateData.college = college;
     if (contact) updateData.contact = contact;
 
-    updateData.updatedAt = new Date().toISOString();
+    const updatedUser = await updateUser(appwriteId, updateData);
 
-    const updatedUser = await databases.updateDocument(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USER_COLLECTION_ID,
-      existingUser.$id, // ✅ Use correct doc ID here
-      updateData
-    );
-
-    res
-      .status(200)
-      .json({ message: "User updated successfully", user: updatedUser });
+    res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
     console.error("Update user error:", error);
     res.status(500).json({ error: "Failed to update user profile" });
   }
-};
+}
 
-module.exports = { initUserProfile, deleteUserAccount, updateUserProfile };
+module.exports = {
+  initUserProfile,
+  deleteUserAccount,
+  updateUserProfile,
+};
