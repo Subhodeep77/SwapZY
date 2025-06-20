@@ -3,27 +3,51 @@ const {
   getAllUsersFromDatabase,
   updateUser,
   softDeleteUser,
-} = require("../services/user");
+} = require("../../services/user");
 
+// GET all users with pagination and filtering
 const getAllUsers = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
-    const offset = parseInt(req.query.offset) || 0;
+    const page = parseInt(req.query.page) || 1;
+    const offset = (page - 1) * limit;
 
-    const users = await getAllUsersFromDatabase({ limit, offset });
-    res.json({ success: true, users });
+    const { role, isDeleted, college, search } = req.query;
+
+    const parsedIsDeleted =
+      typeof isDeleted === "undefined" ? false : isDeleted === "true";
+
+    const { users, totalCount } = await getAllUsersFromDatabase({
+      limit,
+      offset,
+      role,
+      isDeleted: parsedIsDeleted,
+      college,
+      search,
+    });
+
+    res.json({
+      success: true,
+      users,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch users:", error.message);
     res.status(500).json({ error: "Server error" });
   }
 };
 
+// GET user by Appwrite ID
 const getUserDetailsByAppwriteId = async (req, res) => {
   const { appwriteId } = req.params;
 
   try {
     const user = await getUserByAppwriteId(appwriteId);
-
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -35,6 +59,7 @@ const getUserDetailsByAppwriteId = async (req, res) => {
   }
 };
 
+// DELETE (soft delete) user by Appwrite ID
 const softDeleteUserByAppwriteId = async (req, res) => {
   const { appwriteId } = req.params;
 
@@ -51,13 +76,12 @@ const softDeleteUserByAppwriteId = async (req, res) => {
   }
 };
 
-// 🔐 Admin-controlled update for role and isDeleted
+// PUT update user fields by admin
 const updateUserByAdmin = async (req, res) => {
   const { appwriteId } = req.params;
   const { name, email, avatar, bio, college, contact, role, isDeleted } = req.body;
 
   try {
-    // Optional: check for proper admin access using middleware before this
     const updates = {};
 
     if (name) updates.name = name;
@@ -66,11 +90,7 @@ const updateUserByAdmin = async (req, res) => {
     if (bio) updates.bio = bio;
     if (college) updates.college = college;
     if (contact) updates.contact = contact;
-
-    // Only allow valid roles
     if (role && ["USER", "ADMIN"].includes(role)) updates.role = role;
-
-    // Allow toggling isDeleted only if boolean
     if (typeof isDeleted === "boolean") updates.isDeleted = isDeleted;
 
     const updatedUser = await updateUser(appwriteId, updates);
@@ -89,5 +109,5 @@ module.exports = {
   getAllUsers,
   getUserDetailsByAppwriteId,
   softDeleteUserByAppwriteId,
-  updateUserByAdmin, // 🆕 Add this to your admin routes
+  updateUserByAdmin,
 };

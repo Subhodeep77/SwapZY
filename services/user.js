@@ -47,25 +47,55 @@ const getUserByAppwriteId = async (appwriteId) => {
   }
 };
 
-const getAllUsersFromDatabase = async ({ limit = 100, offset = 0 } = {}) => {
+const getAllUsersFromDatabase = async ({
+  limit = 100,
+  offset = 0,
+  role,
+  isDeleted = false,
+  college,
+  search,
+} = {}) => {
   try {
+    const filters = [Query.equal("isDeleted", isDeleted)];
+
+    if (role) filters.push(Query.equal("role", role));
+    if (college) filters.push(Query.equal("college", college));
+    if (search) {
+      filters.push(
+        Query.or([
+          Query.search("name", search),
+          Query.search("email", search),
+        ])
+      );
+    }
+
+    // Fetch paginated data
     const response = await databases.listDocuments(
       process.env.APPWRITE_DATABASE_ID,
       process.env.APPWRITE_USERS_COLLECTION_ID,
       [
-        Query.equal("isDeleted", false),
+        ...filters,
         Query.limit(limit),
         Query.offset(offset),
-        Query.orderDesc("createdAt")
+        Query.orderDesc("createdAt"),
       ]
+    );
+
+    // Fetch total count (without pagination)
+    const totalResponse = await databases.listDocuments(
+      process.env.APPWRITE_DATABASE_ID,
+      process.env.APPWRITE_USERS_COLLECTION_ID,
+      filters
     );
 
     const users = response.documents.map(user => ({
       ...user,
-      avatarUrl: getAvatarPreviewUrl(user.avatar)
+      avatarUrl: getAvatarPreviewUrl(user.avatar),
     }));
 
-    return users;
+    const totalCount = totalResponse.total || totalResponse.documents.length;
+
+    return { users, totalCount };
   } catch (error) {
     throw new Error("Failed to fetch users from Appwrite DB: " + error.message);
   }

@@ -20,6 +20,7 @@ dotenv.config();
 
 require("./services/expireOldProduct");
 require("./services/cleanUpWishlist");
+require("./controllers/admin/dashboardStats");
 
 const app = express();
 const httpServer = http.createServer(app);
