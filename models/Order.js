@@ -1,4 +1,3 @@
-// models/Order.js
 const mongoose = require("mongoose");
 
 const orderSchema = new mongoose.Schema({
@@ -36,6 +35,14 @@ const orderSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  deletedBy: {
+    type: String, // Appwrite user ID of admin
+    default: null
+  },
   acceptedAt: {
     type: Date,
     default: null
@@ -54,22 +61,22 @@ const orderSchema = new mongoose.Schema({
     default: ""
   },
   deliveryInfo: {
-    type: String, // You can change this to an object if needed later
+    type: String,
     default: ""
   }
 }, {
   timestamps: true
 });
 
-// 📌 Add compound index for seller + status to support seller filtering
+// 📌 Indexes for fast querying
 orderSchema.index({ sellerId: 1, status: 1 });
-
-// 📌 Add compound index for buyer + status to support buyer filtering
 orderSchema.index({ buyerId: 1, status: 1 });
+orderSchema.index({ isDeleted: 1 });
 
 const Order = mongoose.model("Order", orderSchema);
+module.exports = Order;
 
-// models/OrderActivityLog.js
+
 const orderActivityLogSchema = new mongoose.Schema({
   orderId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -94,12 +101,15 @@ const orderActivityLogSchema = new mongoose.Schema({
   }
 });
 
+// 📌 Indexes
 orderActivityLogSchema.index({ orderId: 1 });
 orderActivityLogSchema.index({ actorId: 1, action: 1 });
 
 const OrderActivityLog = mongoose.model("OrderActivityLog", orderActivityLogSchema);
 
+
 module.exports = {
   Order,
   OrderActivityLog
 };
+
