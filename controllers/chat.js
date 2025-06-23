@@ -1,5 +1,5 @@
 const Chat = require("../models/Chat");
-
+const Message = require("../models/Message");
 
 
 // initiateChat function
@@ -70,9 +70,6 @@ const initiateChat = async (req, res) => {
 };
 
 // sendMessage function
-const Message = require("../models/Message");
-const Chat = require("../models/Chat");
-
 const sendMessage = async (req, res) => {
   try {
     const senderId = req.user.appwriteId;
