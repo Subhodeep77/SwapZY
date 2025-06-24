@@ -63,7 +63,7 @@ app.use("/order", orderRoutes);
 // ⚙️ DB + Server startup
 connectDB()
   .then(() => {
-    const PORT = process.env.PORT || 3001;
+    const PORT = process.env.PORT || 3000;
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
@@ -101,4 +101,3 @@ connectDB()
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err);
   });
-
