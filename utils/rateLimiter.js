@@ -10,7 +10,7 @@ const logRateLimiter = rateLimit({
   }
 });
 
-const RateLimiter = rateLimit({
+const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // 5 requests per 15 mins
   message: {
@@ -19,8 +19,15 @@ const RateLimiter = rateLimit({
   }
 });
 
+const getMessagesLimiter = rateLimit({
+  windowMs: 30 * 1000, // 30 seconds
+  max: 5,
+  message: "Too many requests for chat messages. Please slow down.",
+});
+
 
 module.exports = {
   logRateLimiter,
-  RateLimiter
+  rateLimiter,
+  getMessagesLimiter
 };

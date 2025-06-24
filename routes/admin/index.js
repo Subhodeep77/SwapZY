@@ -10,5 +10,6 @@ router.use("/users", require("./userManagement"));
 router.use("/admin-login-log", require("./adminLoginLog"));
 router.use("/notifications", require("./notifications"));
 
+console.log('Loaded admin routes');
 
 module.exports = router;

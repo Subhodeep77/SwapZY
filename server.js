@@ -5,9 +5,9 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const { connectDB } = require("./config");
 const { Server } = require("socket.io");
-const cluster = require("cluster");
-const os = require("os");
 const cookieParser = require("cookie-parser");
+const multer = require("multer"); // Needed for error handling
+
 const authRoutes = require("./routes/auth");
 const dashboardRoutes = require("./routes/dashboard");
 const productRoutes = require("./routes/product");
@@ -19,6 +19,7 @@ const orderRoutes = require("./routes/order");
 
 dotenv.config();
 
+// 🔁 Background services
 require("./services/expireOldProduct");
 require("./services/cleanUpWishlist");
 require("./controllers/admin/dashboardStats");
@@ -30,71 +31,74 @@ const io = new Server(httpServer, {
   cors: { origin: process.env.CLIENT_URL },
 });
 
-const numCPUs = os.cpus().length;
+app.set("io", io);
 
-if (cluster.isPrimary) {
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
+// 🔐 Middleware
+app.use(globalLimiter);
+app.use(cors());
+app.use(express.json());
+app.use(cookieParser());
+
+// 🩺 Health check
+app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
+
+// 🛑 Multer error handling
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError || err.message === "Only CSV files are allowed!") {
+    return res.status(400).json({ error: err.message });
   }
+  next(err);
+});
 
-  cluster.on("exit", (worker) => {
-    console.log(`Worker ${worker.process.pid} died`);
-    cluster.fork(); // Respawn a new worker
-  });
-} else {
-  app.use(globalLimiter);
-  app.use(cors());
-  app.use(express.json());
-  app.use(cookieParser());
+// 🔗 Routes
+app.get("/", (req, res) => res.send("SwapZY backend running"));
+app.use("/api/auth", authRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/admin", adminRoutes);
+app.use("/order", orderRoutes);
 
-  // ✅ Health check endpoint (very early)
-  app.get("/health", (req, res) => res.status(200).json({ status: "ok" }));
-
-  app.use((err, req, res, next) => {
-    if (
-      err instanceof multer.MulterError ||
-      err.message === "Only CSV files are allowed!"
-    ) {
-      return res.status(400).json({ error: err.message });
-    }
-    next(err);
-  });
-
-  // TODO: Add your routes here
-  app.get("/", (req, res) => res.send("SwapZY backend running"));
-  app.use("/api/auth", authRoutes); // /api/auth/login, /api/auth/profile
-  app.use("/api/dashboard", dashboardRoutes); // /api/dashboard/stats
-  app.use("/api/products", productRoutes);
-  app.use("/api/user", userRoutes);
-  app.use("/api/wishlist", wishlistRoutes);
-  app.use("/admin", adminRoutes);
-  app.use("/order", orderRoutes);
-
-  // Connect to MongoDB
-  // Connect to MongoDB
-  connectDB()
-    .then(() => {
-      httpServer.listen(process.env.PORT || 3000, () => {
-        console.log(`Server running on port ${process.env.PORT || 3000}`);
-      });
-
-      // 🔻 Graceful shutdown
-      process.on("SIGINT", () => {
-        console.log("🛑 Shutting down gracefully...");
-        // Close server, DB connections, clean up if needed
-        httpServer.close(() => {
-          console.log("✅ HTTP server closed.");
-          process.exit(0);
-        });
-      });
-    })
-    .catch((err) => {
-      console.error("MongoDB connection error:", err);
+// ⚙️ DB + Server startup
+connectDB()
+  .then(() => {
+    const PORT = process.env.PORT || 3001;
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
 
-  // Socket.io setup
-  io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
-    // TODO: Add real-time logic here
+    // ✅ WebSocket setup
+    io.on("connection", (socket) => {
+      console.log("🟢 User connected:", socket.id);
+
+      socket.on("join", (chatId) => {
+        socket.join(chatId);
+      });
+
+      socket.on("TYPING", ({ chatId, userId }) => {
+        socket.to(chatId).emit("TYPING", { chatId, userId });
+      });
+
+      socket.on("STOP_TYPING", ({ chatId, userId }) => {
+        socket.to(chatId).emit("STOP_TYPING", { chatId, userId });
+      });
+
+      socket.on("disconnect", () => {
+        console.log("🔴 User disconnected:", socket.id);
+      });
+    });
+
+    // 🔻 Graceful shutdown
+    process.on("SIGINT", () => {
+      console.log("🛑 Shutting down gracefully...");
+      httpServer.close(() => {
+        console.log("✅ HTTP server closed.");
+        process.exit(0);
+      });
+    });
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
   });
-}
+

@@ -35,11 +35,8 @@ router.get("/all", verifyAppwriteToken, isAdmin, getAllOrders);
 
 // 🛑 Admin deletes order
 router.delete("/:orderId", verifyAppwriteToken, isAdmin, deleteOrderByAdmin);
-
-router.delete("/:orderId", verifyAppwriteToken, isAdmin, deleteOrderByAdmin);
 router.post("/:orderId/restore", verifyAppwriteToken, isAdmin, undoDeleteOrderByAdmin);
 router.get("/deleted", verifyAppwriteToken, isAdmin, getSoftDeletedOrders);
-
 router.get("/deleted-orders/zip", verifyAppwriteToken, isAdmin, rateLimiter, exportDeletedOrdersZip);
 
 module.exports = router;
