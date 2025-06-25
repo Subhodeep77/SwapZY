@@ -9,6 +9,7 @@ const {
   reportToAdmin,
 } = require("../controllers/chat");
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
+const { getMessagesLimiter } = require("../utils/rateLimiter");
 
 // Protect all chat routes
 router.use(verifyAppwriteToken);
@@ -17,7 +18,7 @@ router.use(verifyAppwriteToken);
 router.post("/initiate", initiateChat);
 
 // 2. Get all messages of a chat with pagination & filters
-router.get("/:chatId/messages", getChatMessages);
+router.get("/:chatId/messages", getMessagesLimiter, getChatMessages);
 
 // 3. Send a message to a chat
 router.post("/:chatId/message", sendMessage);

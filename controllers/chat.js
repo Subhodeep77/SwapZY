@@ -387,6 +387,7 @@ const getChatMessages = async (req, res) => {
 const reportToAdmin = async (req, res) => {
   try {
     const userId = req.user.appwriteId;
+    const { text = "Hi, I need help" } = req.body;
 
     // ✅ Step 1: Fetch admin Appwrite ID
     const adminId = await getAdminId();
@@ -407,31 +408,52 @@ const reportToAdmin = async (req, res) => {
       chat = await Chat.create({
         participants,
         isWithAdmin: true,
-        lastMessage: "Hi, I need help",
+        lastMessage: text,
         lastMessageAt: new Date()
       });
       isNewChat = true;
     }
 
-    // ✅ Step 5: Auto-send a first message if it's a new chat
-    if (isNewChat) {
-      const message = await Message.create({
-        chatId: chat._id,
-        senderId: userId,
-        text: "Hi, I need help"
-      });
+    // ✅ Step 5: Enforce daily 25-message limit (even for auto/custom message)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
 
-      // Optional: Emit real-time message
-      const io = req.app.get("io");
-      io.to(chat._id.toString()).emit("NEW_MESSAGE", {
-        message,
-        senderId: userId
+    const adminMsgsToday = await Message.countDocuments({
+      senderId: userId,
+      chatId: chat._id,
+      createdAt: { $gte: todayStart }
+    });
+
+    if (adminMsgsToday >= 25) {
+      return res.status(429).json({
+        error: "Limit to chat with admin is 25 messages/day"
       });
     }
 
+    // ✅ Step 6: Send custom or fallback message
+    const message = await Message.create({
+      chatId: chat._id,
+      senderId: userId,
+      text: text.trim() || "Hi, I need help"
+    });
+
+    // ✅ Update chat lastMessage
+    await Chat.findByIdAndUpdate(chat._id, {
+      lastMessage: message.text,
+      lastMessageAt: new Date()
+    });
+
+    // ✅ Emit NEW_MESSAGE via socket
+    const io = req.app.get("io");
+    io.to(chat._id.toString()).emit("NEW_MESSAGE", {
+      message,
+      senderId: userId
+    });
+
     res.status(200).json({
       success: true,
-      chat
+      chat,
+      message: "Support message sent to admin"
     });
   } catch (error) {
     console.error("reportToAdmin error:", error);
