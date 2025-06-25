@@ -1,29 +1,34 @@
 const express = require("express");
 const router = express.Router();
-
 const {
-  reportToAdmin,
   initiateChat,
-  getChatMessages,
+  sendMessage,
+  getMyChats,
   markChatAsRead,
-  getMyChats
-} = require("../../controllers/chat");
+  getChatMessages,
+  reportToAdmin,
+} = require("../controllers/chat");
+const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
 
-const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
+// Protect all chat routes
+router.use(verifyAppwriteToken);
 
-// Start/report chat with admin
-router.post("/admin-report", verifyAppwriteToken, reportToAdmin);
+// 1. Create or get chat between two users (optional product-based)
+router.post("/initiate", initiateChat);
 
-// Start a new user-to-user chat
-router.post("/initiate", verifyAppwriteToken, initiateChat);
+// 2. Get all messages of a chat with pagination & filters
+router.get("/:chatId/messages", getChatMessages);
 
-// Get messages in a chat (with pagination and filters)
-router.get("/:chatId/messages", verifyAppwriteToken, getChatMessages);
+// 3. Send a message to a chat
+router.post("/:chatId/message", sendMessage);
 
-// Mark messages in a chat as read
-router.patch("/:chatId/mark-read", verifyAppwriteToken, markChatAsRead);
+// 4. List all user chats (latest message + unread count)
+router.get("/my", getMyChats);
 
-// Get all my chats
-router.get("/my", verifyAppwriteToken, getMyChats);
+// 5. Mark all unread messages in a chat as read
+router.patch("/:chatId/read", markChatAsRead);
+
+// 6. Report an issue to admin (starts a support chat)
+router.post("/admin-report", reportToAdmin);
 
 module.exports = router;
