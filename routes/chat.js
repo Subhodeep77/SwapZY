@@ -7,6 +7,7 @@ const {
   markChatAsRead,
   getChatMessages,
   reportToAdmin,
+  getUndeliveredMessages,
 } = require("../controllers/chat");
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
 const { getMessagesLimiter } = require("../utils/rateLimiter");
@@ -31,5 +32,8 @@ router.patch("/:chatId/read", markChatAsRead);
 
 // 6. Report an issue to admin (starts a support chat)
 router.post("/admin-report", reportToAdmin);
+
+// 7. Get all undelivered messages
+router.get("/undelivered", getUndeliveredMessages);
 
 module.exports = router;

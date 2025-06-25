@@ -421,11 +421,29 @@ const reportToAdmin = async (req, res) => {
   }
 };
 
+// getUndeliveredMessages function
+const getUndeliveredMessages = async (req, res) => {
+  try {
+    const userId = req.user.appwriteId;
+
+    const messages = await Message.find({
+      recipientId: userId,
+      isDelivered: false
+    }).sort({ createdAt: 1 });
+
+    res.status(200).json({ success: true, messages });
+  } catch (error) {
+    console.error("getUndeliveredMessages error:", error);
+    res.status(500).json({ error: "Failed to fetch undelivered messages" });
+  }
+};
+
 module.exports = {
   initiateChat,
   sendMessage,
   getMyChats,
   markChatAsRead,
   getChatMessages,
-  reportToAdmin
+  reportToAdmin,
+  getUndeliveredMessages
 };
