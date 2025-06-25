@@ -6,6 +6,7 @@ const { Parser } = require("json2csv");
 const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
+const { emitToRoomIfExists } = require("../utils/socketHelper");
 
 // Place a new order
 const placeOrder = async (req, res) => {
@@ -48,6 +49,9 @@ const placeOrder = async (req, res) => {
       chatId,
     });
 
+    const io = req.app.get("io");
+    emitToRoomIfExists(io, order.chatId, "order:new", { order });
+
     res.status(201).json({ success: true, order });
   } catch (error) {
     console.error("Place order error:", error);
@@ -59,7 +63,7 @@ const placeOrder = async (req, res) => {
 const respondToOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { action } = req.body; // 'ACCEPTED' or 'REJECTED'
+    const { action } = req.body;
     const sellerId = req.user.appwriteId;
 
     const order = await Order.findById(orderId);
@@ -77,12 +81,18 @@ const respondToOrder = async (req, res) => {
     if (action === "ACCEPTED") order.acceptedAt = new Date();
     await order.save();
 
-    // 📌 Add activity log after updating status
     await OrderActivityLog.create({
       orderId: order._id,
       actorId: sellerId,
-      action: `ORDER_${action}`, // e.g., ORDER_ACCEPTED or ORDER_REJECTED
-      remarks: `Order ${action.toLowerCase()} by seller`
+      action: `ORDER_${action}`,
+      remarks: `Order ${action.toLowerCase()} by seller`,
+    });
+
+    const io = req.app.get("io");
+    emitToRoomIfExists(io, order.chatId, "order:statusChanged", {
+      orderId: order._id,
+      status: action,
+      updatedAt: order.updatedAt,
     });
 
     res.status(200).json({ success: true, order });
@@ -367,21 +377,21 @@ const getLogsByActor = async (req, res) => {
   }
 };
 
-
 const cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
     const userId = req.user.appwriteId;
 
-    // Check cancellation rate limit
     const recentCancellations = await OrderActivityLog.countDocuments({
       actorId: userId,
       action: "ORDER_CANCELLED",
-      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
     });
 
     if (recentCancellations >= 5) {
-      return res.status(429).json({ error: "Cancellation limit reached (5 per day)" });
+      return res
+        .status(429)
+        .json({ error: "Cancellation limit reached (5 per day)" });
     }
 
     const order = await Order.findById(orderId);
@@ -399,7 +409,14 @@ const cancelOrder = async (req, res) => {
       orderId,
       actorId: userId,
       action: "ORDER_CANCELLED",
-      remarks: "Order cancelled by participant"
+      remarks: "Order cancelled by participant",
+    });
+
+    const io = req.app.get("io");
+    emitToRoomIfExists(io, order.chatId, "order:cancelled", {
+      orderId: order._id,
+      cancelledBy: userId,
+      updatedAt: order.updatedAt,
     });
 
     res.json({ success: true, order });
@@ -408,7 +425,6 @@ const cancelOrder = async (req, res) => {
     res.status(500).json({ error: "Failed to cancel order" });
   }
 };
-
 
 const MAX_ADMIN_DELETE_LIMIT = 10; // You can tweak this as needed
 
@@ -421,11 +437,12 @@ const deleteOrderByAdmin = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    // Optional: enforce limit if you track admin delete count
     const recentDeletes = await OrderActivityLog.countDocuments({
       actorId: req.user.appwriteId,
-      action: { $in: ["ORDER_SOFT_DELETED_BY_ADMIN", "ORDER_HARD_DELETED_BY_ADMIN"] },
-      timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) } // last 1 hour
+      action: {
+        $in: ["ORDER_SOFT_DELETED_BY_ADMIN", "ORDER_HARD_DELETED_BY_ADMIN"],
+      },
+      timestamp: { $gte: new Date(Date.now() - 60 * 60 * 1000) },
     });
 
     if (recentDeletes >= MAX_ADMIN_DELETE_LIMIT) {
@@ -435,8 +452,8 @@ const deleteOrderByAdmin = async (req, res) => {
     if (hard === "true") {
       await order.deleteOne();
     } else {
-      if (order.isDeleted) return res.status(400).json({ error: "Order already soft deleted" });
-
+      if (order.isDeleted)
+        return res.status(400).json({ error: "Order already soft deleted" });
       order.isDeleted = true;
       order.deletedAt = new Date();
       order.deletedBy = req.user.appwriteId;
@@ -446,13 +463,27 @@ const deleteOrderByAdmin = async (req, res) => {
     await OrderActivityLog.create({
       orderId,
       actorId: req.user.appwriteId,
-      action: hard === "true" ? "ORDER_HARD_DELETED_BY_ADMIN" : "ORDER_SOFT_DELETED_BY_ADMIN",
-      remarks: hard === "true" ? "Hard delete executed by admin" : "Soft delete marked by admin"
+      action:
+        hard === "true"
+          ? "ORDER_HARD_DELETED_BY_ADMIN"
+          : "ORDER_SOFT_DELETED_BY_ADMIN",
+      remarks:
+        hard === "true"
+          ? "Hard delete executed by admin"
+          : "Soft delete marked by admin",
+    });
+
+    const io = req.app.get("io");
+    emitToRoomIfExists(io, order.chatId, "order:deleted", {
+      orderId: order._id,
+      deletedBy: req.user.appwriteId,
+      hard: hard === "true",
     });
 
     res.json({
       success: true,
-      message: hard === "true" ? "Order permanently deleted" : "Order soft deleted"
+      message:
+        hard === "true" ? "Order permanently deleted" : "Order soft deleted",
     });
   } catch (error) {
     console.error("Admin delete order error:", error);
@@ -479,7 +510,13 @@ const undoDeleteOrderByAdmin = async (req, res) => {
       orderId,
       actorId: req.user.appwriteId,
       action: "ORDER_RESTORED_BY_ADMIN",
-      remarks: "Soft-deleted order restored"
+      remarks: "Soft-deleted order restored",
+    });
+
+    const io = req.app.get("io");
+    emitToRoomIfExists(io, order.chatId, "order:restored", {
+      orderId: order._id,
+      restoredBy: req.user.appwriteId,
     });
 
     res.json({ success: true, message: "Order restored successfully" });
@@ -488,7 +525,6 @@ const undoDeleteOrderByAdmin = async (req, res) => {
     res.status(500).json({ error: "Failed to restore order" });
   }
 };
-
 
 const getSoftDeletedOrders = async (req, res) => {
   try {
@@ -500,7 +536,7 @@ const getSoftDeletedOrders = async (req, res) => {
       productId,
       status,
       from,
-      to
+      to,
     } = req.query;
 
     const skip = (page - 1) * limit;
@@ -523,7 +559,7 @@ const getSoftDeletedOrders = async (req, res) => {
         .skip(Number(skip))
         .limit(Number(limit))
         .lean(),
-      Order.countDocuments(filters)
+      Order.countDocuments(filters),
     ]);
 
     res.status(200).json({
@@ -533,15 +569,14 @@ const getSoftDeletedOrders = async (req, res) => {
         total,
         page: Number(page),
         limit: Number(limit),
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Fetch soft-deleted orders error:", error);
     res.status(500).json({ error: "Failed to fetch deleted orders" });
   }
 };
-
 
 const exportDeletedOrdersZip = async (req, res) => {
   try {
@@ -552,7 +587,7 @@ const exportDeletedOrdersZip = async (req, res) => {
       buyerId,
       sellerId,
       page = 1,
-      limit = 100
+      limit = 100,
     } = req.query;
 
     const query = { isDeleted: true };
@@ -575,12 +610,20 @@ const exportDeletedOrdersZip = async (req, res) => {
       .lean();
 
     if (!orders.length) {
-      return res.status(404).json({ error: "No deleted orders found for given criteria" });
+      return res
+        .status(404)
+        .json({ error: "No deleted orders found for given criteria" });
     }
 
     const fields = [
-      "_id", "productId", "buyerId", "sellerId",
-      "status", "amount", "createdAt", "deletedAt"
+      "_id",
+      "productId",
+      "buyerId",
+      "sellerId",
+      "status",
+      "amount",
+      "createdAt",
+      "deletedAt",
     ];
 
     const parser = new Parser({ fields });
@@ -589,7 +632,7 @@ const exportDeletedOrdersZip = async (req, res) => {
     // Set zip headers
     res.set({
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename=deleted_orders_page${page}.zip`
+      "Content-Disposition": `attachment; filename=deleted_orders_page${page}.zip`,
     });
 
     const archive = archiver("zip", { zlib: { level: 9 } });
@@ -608,7 +651,6 @@ const exportDeletedOrdersZip = async (req, res) => {
     res.on("finish", () => {
       console.log(`Deleted orders ZIP (page ${page}) sent.`);
     });
-
   } catch (error) {
     console.error("Deleted orders ZIP export error:", error);
     if (!res.headersSent) {
@@ -616,8 +658,6 @@ const exportDeletedOrdersZip = async (req, res) => {
     }
   }
 };
-
-
 
 module.exports = {
   placeOrder,
@@ -632,5 +672,5 @@ module.exports = {
   deleteOrderByAdmin,
   undoDeleteOrderByAdmin,
   getSoftDeletedOrders,
-  exportDeletedOrdersZip
+  exportDeletedOrdersZip,
 };
