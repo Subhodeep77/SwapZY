@@ -16,6 +16,8 @@ const wishlistRoutes = require("./routes/wishlist");
 const { globalLimiter } = require("./middlewares/rateLimiter");
 const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/order");
+const chatRoutes = require("./routes/chat");
+const validateChatAccess = require("./middlewares/validateChatAccess");
 
 dotenv.config();
 
@@ -59,6 +61,10 @@ app.use("/api/user", userRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/admin", adminRoutes);
 app.use("/order", orderRoutes);
+app.use("/chat", chatRoutes);
+
+// ⚙️ DB + Server startup
+// ...[unchanged imports and config setup above]...
 
 // ⚙️ DB + Server startup
 connectDB()
@@ -68,20 +74,53 @@ connectDB()
       console.log(`🚀 Server running on http://localhost:${PORT}`);
     });
 
-    // ✅ WebSocket setup
+    // ✅ WebSocket setup with JOIN/LEAVE and validation
     io.on("connection", (socket) => {
       console.log("🟢 User connected:", socket.id);
 
-      socket.on("join", (chatId) => {
-        socket.join(chatId);
+      // JOIN_CHAT with validation and user tracking
+      socket.on("JOIN_CHAT", async ({ chatId, userId }) => {
+        try {
+          await validateChatAccess(chatId, userId);
+          socket.data.userId = userId; // Store userId for later use
+          socket.join(chatId);
+          socket.emit("JOINED_CHAT", { chatId });
+        } catch (error) {
+          socket.emit("JOIN_ERROR", { error: error.message });
+        }
       });
 
-      socket.on("TYPING", ({ chatId, userId }) => {
-        socket.to(chatId).emit("TYPING", { chatId, userId });
+      // LEAVE_CHAT
+      socket.on("LEAVE_CHAT", ({ chatId }) => {
+        socket.leave(chatId);
+        socket.emit("LEFT_CHAT", { chatId });
       });
 
-      socket.on("STOP_TYPING", ({ chatId, userId }) => {
-        socket.to(chatId).emit("STOP_TYPING", { chatId, userId });
+      // TYPING
+      socket.on("TYPING", ({ chatId }) => {
+        const userId = socket.data.userId;
+        if (userId) {
+          socket.to(chatId).emit("TYPING", { chatId, userId });
+        }
+      });
+
+      // STOP_TYPING
+      socket.on("STOP_TYPING", ({ chatId }) => {
+        const userId = socket.data.userId;
+        if (userId) {
+          socket.to(chatId).emit("STOP_TYPING", { chatId, userId });
+        }
+      });
+
+      // SEND_MESSAGE
+      socket.on("SEND_MESSAGE", async (data) => {
+        const userId = socket.data.userId;
+        try {
+          await validateChatAccess(data.chatId, userId);
+          // Proceed to save and emit message
+        } catch (error) {
+          socket.emit("SEND_ERROR", { error: error.message });
+        }
       });
 
       socket.on("disconnect", () => {

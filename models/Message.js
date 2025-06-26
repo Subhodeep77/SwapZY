@@ -23,12 +23,6 @@ const messageSchema = new mongoose.Schema({
   },
   attachments: [String], // File URLs or fileIds
 
-  // Read tracking
-  readBy: {
-    type: [String],
-    default: []
-  },
-
   // Delivery tracking
   isDelivered: {
     type: Boolean,
@@ -37,7 +31,23 @@ const messageSchema = new mongoose.Schema({
   deliveredAt: {
     type: Date,
     default: null
-  }
+  },
+
+  // NEW: Seen timestamp tracking
+  seenBy: [
+    {
+      userId: { type: String, required: true },
+      seenAt: { type: Date, required: true }
+    }
+  ],
+
+  // NEW: Emoji reactions
+  reactions: [
+    {
+      userId: { type: String, required: true },
+      emoji: { type: String, required: true }
+    }
+  ]
 }, { timestamps: true });
 
 // Indexes for performance

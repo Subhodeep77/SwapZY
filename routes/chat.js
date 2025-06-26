@@ -4,7 +4,7 @@ const {
   initiateChat,
   sendMessage,
   getMyChats,
-  markChatAsRead,
+  markChatAsSeen,
   getChatMessages,
   reportToAdmin,
   getUndeliveredMessages,
@@ -28,12 +28,18 @@ router.post("/:chatId/message", sendMessage);
 router.get("/my", getMyChats);
 
 // 5. Mark all unread messages in a chat as read
-router.patch("/:chatId/read", markChatAsRead);
+router.patch("/:chatId/read", markChatAsSeen);
 
 // 6. Report an issue to admin (starts a support chat)
 router.post("/admin-report", reportToAdmin);
 
 // 7. Get all undelivered messages
 router.get("/undelivered", getUndeliveredMessages);
+
+// 8. React emojis on messages
+router.post("/message/:messageId/react", reactToMessage);
+
+// 9. Unreact the emojis on messages 
+router.delete("/message/:messageId/unreact", unreactToMessage);
 
 module.exports = router;

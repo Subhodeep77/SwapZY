@@ -18,20 +18,20 @@ const initiateChat = async (req, res) => {
     const conflictChat = await Chat.findOne({
       participants,
       isWithAdmin: false,
-      productId: { $ne: productId || null }
+      productId: { $ne: productId || null },
     });
 
     if (!isWithAdmin && conflictChat) {
       return res.status(409).json({
         error: "A chat already exists with this user for another product",
-        existingChat: conflictChat
+        existingChat: conflictChat,
       });
     }
 
     const query = {
       participants,
       productId: productId || null,
-      isWithAdmin
+      isWithAdmin,
     };
 
     let chat = await Chat.findOne(query);
@@ -42,7 +42,7 @@ const initiateChat = async (req, res) => {
         chat,
         message: isWithAdmin
           ? "You already have an ongoing support chat with admin"
-          : "Chat already exists with this user for this product"
+          : "Chat already exists with this user for this product",
       });
     }
 
@@ -51,7 +51,7 @@ const initiateChat = async (req, res) => {
       productId: productId || null,
       isWithAdmin,
       lastMessage: "",
-      lastMessageAt: null
+      lastMessageAt: null,
     });
 
     res.status(201).json({
@@ -59,7 +59,7 @@ const initiateChat = async (req, res) => {
       chat,
       message: isWithAdmin
         ? "Support chat with admin initiated"
-        : "Chat initiated successfully"
+        : "Chat initiated successfully",
     });
   } catch (error) {
     console.error("Initiate chat error:", error);
@@ -75,7 +75,9 @@ const sendMessage = async (req, res) => {
     const { text = "", attachments = [] } = req.body;
 
     if (!text && attachments.length === 0) {
-      return res.status(400).json({ error: "Message must have text or attachments" });
+      return res
+        .status(400)
+        .json({ error: "Message must have text or attachments" });
     }
 
     const chat = await Chat.findById(chatId).lean();
@@ -88,26 +90,30 @@ const sendMessage = async (req, res) => {
 
     const totalMessagesToday = await Message.countDocuments({
       senderId,
-      createdAt: { $gte: todayStart }
+      createdAt: { $gte: todayStart },
     });
 
     if (totalMessagesToday >= 100) {
-      return res.status(429).json({ error: "Daily message limit reached (100)" });
+      return res
+        .status(429)
+        .json({ error: "Daily message limit reached (100)" });
     }
 
     if (chat.isWithAdmin) {
       const adminMsgsToday = await Message.countDocuments({
         senderId,
         chatId,
-        createdAt: { $gte: todayStart }
+        createdAt: { $gte: todayStart },
       });
 
       if (adminMsgsToday >= 25) {
-        return res.status(429).json({ error: "Limit to chat with admin is 25 messages/day" });
+        return res
+          .status(429)
+          .json({ error: "Limit to chat with admin is 25 messages/day" });
       }
     }
 
-    const recipientId = chat.participants.find(p => p !== senderId);
+    const recipientId = chat.participants.find((p) => p !== senderId);
 
     const message = await Message.create({
       chatId,
@@ -116,25 +122,27 @@ const sendMessage = async (req, res) => {
       text,
       attachments,
       isDelivered: true,
-      deliveredAt: new Date()
+      deliveredAt: new Date(),
+      seenBy: [],
+      reactions: [],
     });
 
     await Chat.findByIdAndUpdate(chatId, {
       lastMessage: text || (attachments.length > 0 ? "[Attachment]" : ""),
-      lastMessageAt: new Date()
+      lastMessageAt: new Date(),
     });
 
     const io = req.app.get("io");
     io.to(chatId).emit("NEW_MESSAGE", {
       message,
-      senderId
+      senderId,
     });
 
     if (recipientId) {
       io.to(chatId).emit("MESSAGE_DELIVERED", {
         chatId,
         messageId: message._id,
-        recipientId
+        recipientId,
       });
     }
 
@@ -144,7 +152,6 @@ const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Failed to send message" });
   }
 };
-
 // getMyChats function
 const getMyChats = async (req, res) => {
   try {
@@ -156,15 +163,15 @@ const getMyChats = async (req, res) => {
     const productId = req.query.productId;
 
     const matchStage = {
-      participants: userId
+      participants: userId,
     };
 
     if (adminOnly) {
       matchStage.isWithAdmin = true;
     }
 
-    if (productId && mongoose.Types.ObjectId.isValid(productId)) {
-      matchStage.productId = new mongoose.Types.ObjectId(productId);
+    if (productId && mongoose.isValidObjectId(productId)) {
+      matchStage.productId = mongoose.Types.ObjectId.createFromHexString(productId);
     }
 
     const searchRegex = search ? new RegExp(search, "i") : null;
@@ -176,10 +183,12 @@ const getMyChats = async (req, res) => {
           from: "products",
           localField: "productId",
           foreignField: "_id",
-          as: "product"
-        }
+          as: "product",
+        },
       },
       { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+      // 👇 Lookup unread messages
       {
         $lookup: {
           from: "messages",
@@ -191,31 +200,117 @@ const getMyChats = async (req, res) => {
                   $and: [
                     { $eq: ["$chatId", "$$chatId"] },
                     { $not: { $in: [userId, "$readBy"] } },
-                    { $ne: ["$senderId", userId] }
+                    { $ne: ["$senderId", userId] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "unreadMessages",
+        },
+      },
+
+      // 👇 Lookup last message and extract top 3 emoji summary + user's reaction
+      {
+        $lookup: {
+          from: "messages",
+          let: { chatId: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$chatId", "$$chatId"] } } },
+            { $sort: { createdAt: -1 } },
+            { $limit: 1 },
+            {
+              $project: {
+                text: 1,
+                reactions: 1,
+                reactionSummary: {
+                  $slice: [
+                    {
+                      $map: {
+                        input: {
+                          $slice: [
+                            {
+                              $sortArray: {
+                                input: {
+                                  $map: {
+                                    input: { $setUnion: ["$reactions.emoji", []] },
+                                    as: "emoji",
+                                    in: {
+                                      emoji: "$$emoji",
+                                      count: {
+                                        $size: {
+                                          $filter: {
+                                            input: "$reactions",
+                                            as: "r",
+                                            cond: { $eq: ["$$r.emoji", "$$emoji"] }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                sortBy: { count: -1 }
+                              }
+                            },
+                            3
+                          ]
+                        },
+                        as: "r",
+                        in: { k: "$$r.emoji", v: "$$r.count" }
+                      }
+                    },
+                    3
+                  ]
+                },
+                userReaction: {
+                  $arrayElemAt: [
+                    {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$reactions",
+                            as: "r",
+                            cond: { $eq: ["$$r.userId", userId] }
+                          }
+                        },
+                        as: "ur",
+                        in: "$$ur.emoji"
+                      }
+                    },
+                    0
                   ]
                 }
               }
             }
           ],
-          as: "unreadMessages"
+          as: "lastMsgData"
         }
       },
       {
         $addFields: {
-          unreadCount: { $size: "$unreadMessages" }
+          unreadCount: { $size: "$unreadMessages" },
+          lastMessageReactions: { $arrayElemAt: ["$lastMsgData.reactionSummary", 0] },
+          lastMessageUserReaction: { $arrayElemAt: ["$lastMsgData.userReaction", 0] }
         }
       },
-      ...(searchRegex ? [{
-        $match: {
-          $or: [
-            { lastMessage: { $regex: searchRegex } },
-            { "product.title": { $regex: searchRegex } }
+
+      ...(searchRegex
+        ? [
+            {
+              $match: {
+                $or: [
+                  { lastMessage: { $regex: searchRegex } },
+                  { "product.title": { $regex: searchRegex } },
+                ],
+              },
+            },
           ]
-        }
-      }] : []),
+        : []),
+
       { $sort: { lastMessageAt: -1 } },
       { $skip: (page - 1) * limit },
       { $limit: limit },
+
       {
         $project: {
           _id: 1,
@@ -226,13 +321,15 @@ const getMyChats = async (req, res) => {
           createdAt: 1,
           updatedAt: 1,
           unreadCount: 1,
+          lastMessageReactions: 1,
+          lastMessageUserReaction: 1,
           product: {
             _id: 1,
             title: 1,
-            images: { $ifNull: ["$product.images", []] }
-          }
-        }
-      }
+            images: { $ifNull: ["$product.images", []] },
+          },
+        },
+      },
     ];
 
     const chats = await Chat.aggregate(pipeline);
@@ -243,7 +340,7 @@ const getMyChats = async (req, res) => {
       page,
       limit,
       totalChats: total,
-      chats
+      chats,
     });
   } catch (error) {
     console.error("getMyChats error:", error);
@@ -251,8 +348,9 @@ const getMyChats = async (req, res) => {
   }
 };
 
-// markChatAsRead function
-const markChatAsRead = async (req, res) => {
+
+// markChatAsSeen function
+const markChatAsSeen = async (req, res) => {
   try {
     const userId = req.user.appwriteId;
     const { chatId } = req.params;
@@ -269,39 +367,53 @@ const markChatAsRead = async (req, res) => {
     const unreadMessages = await Message.find({
       chatId,
       senderId: { $ne: userId },
-      readBy: { $ne: userId }
+      "seenBy.userId": { $ne: userId }
     });
 
-    await Message.updateMany(
-      { _id: { $in: unreadMessages.map(msg => msg._id) } },
-      { $addToSet: { readBy: userId } }
-    );
+    const now = new Date();
+
+    const bulkOps = unreadMessages.map((msg) => ({
+      updateOne: {
+        filter: { _id: msg._id },
+        update: {
+          $addToSet: {
+            seenBy: { userId, seenAt: now }
+          }
+        }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Message.bulkWrite(bulkOps);
+    }
 
     const io = req.app.get("io");
-    unreadMessages.forEach(msg => {
+    unreadMessages.forEach((msg) => {
       io.to(chatId).emit("MESSAGE_READ", {
         chatId,
         messageId: msg._id,
-        readerId: userId
+        readerId: userId,
+        seenAt: now
       });
     });
 
     const unreadLeft = await Message.countDocuments({
       chatId,
       senderId: { $ne: userId },
-      readBy: { $ne: userId }
+      "seenBy.userId": { $ne: userId }
     });
 
     res.status(200).json({
       success: true,
-      message: "Messages marked as read",
+      message: "Messages marked as seen",
       unreadLeft
     });
   } catch (error) {
-    console.error("Error marking messages as read:", error);
-    res.status(500).json({ error: "Failed to mark messages as read" });
+    console.error("markChatAsSeen error:", error);
+    res.status(500).json({ error: "Failed to mark messages as seen" });
   }
 };
+
 
 // getChatMessages function
 const getChatMessages = async (req, res) => {
@@ -342,6 +454,30 @@ const getChatMessages = async (req, res) => {
       .limit(limit)
       .lean();
 
+    const enrichedMessages = messages.map((msg) => {
+      const summary = {};
+      msg.reactions?.forEach(({ emoji }) => {
+        summary[emoji] = (summary[emoji] || 0) + 1;
+      });
+
+      // Sort summary and pick top 3
+      const top3Reactions = Object.entries(summary)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .reduce((acc, [emoji, count]) => {
+          acc[emoji] = count;
+          return acc;
+        }, {});
+
+      const userReaction = msg.reactions?.find((r) => r.userId === userId) || null;
+
+      return {
+        ...msg,
+        top3Reactions,
+        userReaction,
+      };
+    });
+
     const totalMessages = await Message.countDocuments(filters);
 
     res.status(200).json({
@@ -349,11 +485,78 @@ const getChatMessages = async (req, res) => {
       page,
       limit,
       totalMessages,
-      messages
+      messages: enrichedMessages,
     });
   } catch (error) {
     console.error("getChatMessages error:", error);
     res.status(500).json({ error: "Failed to fetch chat messages" });
+  }
+};
+
+
+// getUndeliveredMessages function
+const getUndeliveredMessages = async (req, res) => {
+  try {
+    const userId = req.user.appwriteId;
+
+    const messages = await Message.find({
+      recipientId: userId,
+      isDelivered: false,
+    }).sort({ createdAt: 1 });
+
+    res.status(200).json({ success: true, messages });
+  } catch (error) {
+    console.error("getUndeliveredMessages error:", error);
+    res.status(500).json({ error: "Failed to fetch undelivered messages" });
+  }
+};
+
+// reactToMessage controller
+const reactToMessage = async (req, res) => {
+  try {
+    const userId = req.user.appwriteId;
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+
+    if (!emoji || typeof emoji !== "string") {
+      return res.status(400).json({ error: "Emoji reaction is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    const existingIndex = message.reactions.findIndex(
+      (r) => r.userId === userId
+    );
+
+    if (existingIndex !== -1) {
+      // Update existing reaction
+      message.reactions[existingIndex].emoji = emoji;
+    } else {
+      // Add new reaction
+      message.reactions.push({ userId, emoji });
+    }
+
+    await message.save();
+
+    // Emit REACTION_UPDATED via socket
+    const io = req.app.get("io");
+    io.to(message.chatId.toString()).emit("REACTION_UPDATED", {
+      messageId: message._id,
+      userId,
+      emoji,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Reaction updated successfully",
+      reactions: message.reactions,
+    });
+  } catch (error) {
+    console.error("reactToMessage error:", error);
+    res.status(500).json({ error: "Failed to react to message" });
   }
 };
 
@@ -373,7 +576,7 @@ const reportToAdmin = async (req, res) => {
         participants,
         isWithAdmin: true,
         lastMessage: text,
-        lastMessageAt: new Date()
+        lastMessageAt: new Date(),
       });
     }
 
@@ -383,11 +586,13 @@ const reportToAdmin = async (req, res) => {
     const adminMsgsToday = await Message.countDocuments({
       senderId: userId,
       chatId: chat._id,
-      createdAt: { $gte: todayStart }
+      createdAt: { $gte: todayStart },
     });
 
     if (adminMsgsToday >= 25) {
-      return res.status(429).json({ error: "Limit to chat with admin is 25 messages/day" });
+      return res
+        .status(429)
+        .json({ error: "Limit to chat with admin is 25 messages/day" });
     }
 
     const message = await Message.create({
@@ -396,24 +601,24 @@ const reportToAdmin = async (req, res) => {
       recipientId: adminId,
       text: text.trim() || "Hi, I need help",
       isDelivered: true,
-      deliveredAt: new Date()
+      deliveredAt: new Date(),
     });
 
     await Chat.findByIdAndUpdate(chat._id, {
       lastMessage: message.text,
-      lastMessageAt: new Date()
+      lastMessageAt: new Date(),
     });
 
     const io = req.app.get("io");
     io.to(chat._id.toString()).emit("NEW_MESSAGE", {
       message,
-      senderId: userId
+      senderId: userId,
     });
 
     res.status(200).json({
       success: true,
       chat,
-      message: "Support message sent to admin"
+      message: "Support message sent to admin",
     });
   } catch (error) {
     console.error("reportToAdmin error:", error);
@@ -421,20 +626,41 @@ const reportToAdmin = async (req, res) => {
   }
 };
 
-// getUndeliveredMessages function
-const getUndeliveredMessages = async (req, res) => {
+// unreactToMessage function
+const unreactToMessage = async (req, res) => {
   try {
     const userId = req.user.appwriteId;
+    const { messageId } = req.params;
 
-    const messages = await Message.find({
-      recipientId: userId,
-      isDelivered: false
-    }).sort({ createdAt: 1 });
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
 
-    res.status(200).json({ success: true, messages });
+    const initialLength = message.reactions.length;
+    message.reactions = message.reactions.filter((r) => r.userId !== userId);
+
+    if (message.reactions.length === initialLength) {
+      return res.status(404).json({ error: "No reaction found to remove" });
+    }
+
+    await message.save();
+
+    // Emit event
+    const io = req.app.get("io");
+    io.to(message.chatId.toString()).emit("REACTION_REMOVED", {
+      messageId: message._id,
+      userId,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Reaction removed successfully",
+      reactions: message.reactions,
+    });
   } catch (error) {
-    console.error("getUndeliveredMessages error:", error);
-    res.status(500).json({ error: "Failed to fetch undelivered messages" });
+    console.error("unreactToMessage error:", error);
+    res.status(500).json({ error: "Failed to remove reaction" });
   }
 };
 
@@ -442,8 +668,10 @@ module.exports = {
   initiateChat,
   sendMessage,
   getMyChats,
-  markChatAsRead,
+  markChatAsSeen,
   getChatMessages,
   reportToAdmin,
-  getUndeliveredMessages
+  getUndeliveredMessages,
+  unreactToMessage,
+  reactToMessage,
 };
