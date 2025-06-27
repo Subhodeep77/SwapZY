@@ -25,9 +25,17 @@ const getMessagesLimiter = rateLimit({
   message: "Too many requests for chat messages. Please slow down.",
 });
 
+const refundLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 3, // max 3 refunds per minute per IP (or can be token-based if needed)
+  message: { error: "Too many refund requests. Please slow down." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 module.exports = {
   logRateLimiter,
   rateLimiter,
-  getMessagesLimiter
+  getMessagesLimiter,
+  refundLimiter
 };

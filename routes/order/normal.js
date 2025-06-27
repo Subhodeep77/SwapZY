@@ -10,10 +10,11 @@ const {
   deleteOrderByAdmin,
   undoDeleteOrderByAdmin,
   getSoftDeletedOrders,
-  exportDeletedOrdersZip
+  exportDeletedOrdersZip,
+  refundPayment
 } = require("../../controllers/order");
 
-const { rateLimiter } = require("../../utils/rateLimiter");
+const { rateLimiter, refundLimiter } = require("../../utils/rateLimiter");
 
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 const isAdmin = require("../../middlewares/isAdmin");
@@ -38,5 +39,6 @@ router.delete("/:orderId", verifyAppwriteToken, isAdmin, deleteOrderByAdmin);
 router.post("/:orderId/restore", verifyAppwriteToken, isAdmin, undoDeleteOrderByAdmin);
 router.get("/deleted", verifyAppwriteToken, isAdmin, getSoftDeletedOrders);
 router.get("/deleted-orders/zip", verifyAppwriteToken, isAdmin, rateLimiter, exportDeletedOrdersZip);
+router.post("/refund", verifyAppwriteToken, isAdmin, refundLimiter, refundPayment);
 
 module.exports = router;

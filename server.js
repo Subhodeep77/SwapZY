@@ -17,6 +17,7 @@ const { globalLimiter } = require("./middlewares/rateLimiter");
 const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/order");
 const chatRoutes = require("./routes/chat");
+const webhookRoutes = require("./routes/webhook");
 const validateChatAccess = require("./middlewares/validateChatAccess");
 
 dotenv.config();
@@ -62,6 +63,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/admin", adminRoutes);
 app.use("/order", orderRoutes);
 app.use("/chat", chatRoutes);
+app.use("/webhook", webhookRoutes);
 
 // ⚙️ DB + Server startup
 // ...[unchanged imports and config setup above]...

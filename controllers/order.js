@@ -7,6 +7,8 @@ const fs = require("fs");
 const path = require("path");
 const archiver = require("archiver");
 const { emitToRoomIfExists } = require("../utils/socketHelper");
+const Razorpay = require("razorpay");
+const { AdminAction } = require("../models/admin"); 
 
 // Place a new order
 const placeOrder = async (req, res) => {
@@ -659,6 +661,71 @@ const exportDeletedOrdersZip = async (req, res) => {
   }
 };
 
+
+const refundPayment = async (req, res) => {
+  try {
+    const { orderId, reason } = req.body;
+    const order = await Order.findById(orderId);
+
+    if (!order || order.paymentInfo.status !== "paid") {
+      return res.status(400).json({ error: "Refund not applicable" });
+    }
+
+    const io = req.app.get("io");
+
+    // ✅ Emit refund initiation event (before Razorpay API call)
+    io.to(order.buyerId).emit("order:refundInitiated", {
+      orderId: order._id,
+      amount: order.paymentInfo.amount,
+      reason: reason || "Admin initiated refund",
+    });
+
+    // 💸 Call Razorpay refund
+    const refund = await Razorpay.payments.refund(order.paymentInfo.paymentId, {
+      speed: "optimum",
+      notes: { reason: reason || "Admin initiated refund" },
+    });
+
+    // ✅ Update DB
+    order.paymentInfo.status = "refunded";
+    order.paymentInfo.refundedAt = new Date();
+    order.paymentInfo.refundReason = reason;
+    await order.save();
+
+    // ✅ Log AdminAction
+    await AdminAction.create({
+      adminAppwriteId: req.user.appwriteId,
+      actionType: "REFUND_ISSUED",
+      description: `Refund issued for Order ${orderId} (₹${order.paymentInfo.amount})`,
+      affectedId: orderId,
+      metadata: {
+        refundId: refund.id,
+        reason: reason || "Admin initiated refund",
+        paymentId: order.paymentInfo.paymentId,
+        refundedAt: new Date(),
+      },
+    });
+
+    // ✅ Final refund complete event
+    io.to(order.buyerId).emit("order:refunded", order);
+
+    res.status(200).json({ success: true, message: "Refund successful", refund, order });
+  } catch (err) {
+    console.error("❌ Refund failed:", err.message);
+
+    // 🔴 Emit refund failure event
+    const io = req.app.get("io");
+    if (req.body?.orderId) {
+      io.to(req.body.orderId).emit("order:refundFailed", {
+        orderId: req.body.orderId,
+        error: err.message,
+      });
+    }
+
+    res.status(500).json({ error: "Refund failed", details: err.message });
+  }
+};
+
 module.exports = {
   placeOrder,
   respondToOrder,
@@ -673,4 +740,5 @@ module.exports = {
   undoDeleteOrderByAdmin,
   getSoftDeletedOrders,
   exportDeletedOrdersZip,
+  refundPayment
 };
