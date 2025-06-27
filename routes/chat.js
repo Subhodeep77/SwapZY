@@ -8,6 +8,8 @@ const {
   getChatMessages,
   reportToAdmin,
   getUndeliveredMessages,
+  reactToMessage,
+  unreactToMessage
 } = require("../controllers/chat");
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
 const { getMessagesLimiter } = require("../utils/rateLimiter");
@@ -41,5 +43,7 @@ router.post("/message/:messageId/react", reactToMessage);
 
 // 9. Unreact the emojis on messages 
 router.delete("/message/:messageId/unreact", unreactToMessage);
+
+console.log(`Loaded chat routes`);
 
 module.exports = router;
