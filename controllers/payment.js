@@ -94,3 +94,29 @@ exports.verifyPayment = async (req, res) => {
     res.status(500).json({ error: "Failed to verify payment" });
   }
 };
+
+exports.getPaymentStatus = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const paymentInfo = order.paymentInfo || {};
+
+    res.status(200).json({
+      success: true,
+      orderId: order._id,
+      status: paymentInfo.status || "pending",
+      paidAt: paymentInfo.paidAt,
+      refundedAt: paymentInfo.refundedAt,
+      refundReason: paymentInfo.refundReason,
+      paymentId: paymentInfo.paymentId,
+    });
+  } catch (err) {
+    console.error("❌ Get payment status error:", err.message);
+    res.status(500).json({ error: "Failed to fetch payment status" });
+  }
+};

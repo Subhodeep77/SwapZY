@@ -18,14 +18,17 @@ const adminRoutes = require("./routes/admin");
 const orderRoutes = require("./routes/order");
 const chatRoutes = require("./routes/chat");
 const webhookRoutes = require("./routes/webhook");
+const paymentRoutes = require("./routes/payment");
 const validateChatAccess = require("./middlewares/validateChatAccess");
+const registerOrderExpiryCron = require("./services/expireUnpaidOrders")
+const scheduleProductExpiry = require("./services/expireOldProduct");
 
 dotenv.config();
 
 // 🔁 Background services
-require("./services/expireOldProduct");
 require("./services/cleanUpWishlist");
 require("./controllers/admin/dashboardStats");
+
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -35,6 +38,8 @@ const io = new Server(httpServer, {
 });
 
 app.set("io", io);
+registerOrderExpiryCron(io);
+scheduleProductExpiry(io);
 
 // 🔐 Middleware
 app.use(globalLimiter);
@@ -64,6 +69,7 @@ app.use("/admin", adminRoutes);
 app.use("/order", orderRoutes);
 app.use("/chat", chatRoutes);
 app.use("/webhook", webhookRoutes);
+app.use("/payment", paymentRoutes);
 
 // ⚙️ DB + Server startup
 // ...[unchanged imports and config setup above]...
