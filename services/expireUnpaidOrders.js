@@ -1,4 +1,4 @@
-const { Order } = require("../models/Order");
+const { Order, OrderActivityLog } = require("../models/Order");
 const { AdminAction } = require("../models/admin");
 const { Product } = require("../models/Product");
 const cron = require("node-cron");
@@ -16,21 +16,46 @@ const expireUnpaidOrders = async (io) => {
   for (const order of expiredOrders) {
     order.paymentInfo.status = "expired";
     order.status = "EXPIRED";
-    order.expiryReason = reason; // ✅ Save the reason string
+    order.expiryReason = reason;
     await order.save();
 
-    // ✅ Make product available again
-    if (order.productId) {
+    // ✅ Unconditionally make product available if order is auto-expired
+    if (order.status === "EXPIRED" && order.expiryReason?.includes("Auto-expired")) {
       await Product.findByIdAndUpdate(order.productId, { status: "available" });
     }
 
-    // ✅ Emit socket event
+    const product = await Product.findById(order.productId).lean();
+
+    // ✅ Emit socket events
+    const payload = {
+      order,
+      product: product ? {
+        _id: product._id,
+        title: product.title,
+        thumbnail: product.thumbnail,
+        status: product.status,
+      } : null,
+    };
+
     if (io) {
-      io.to(order.buyerId).emit("order:expired", order);
-      io.to(order.sellerId).emit("order:expired", order);
+      io.to(order.buyerId).emit("order:expired", payload);
+      io.to(order.sellerId).emit("order:expired", payload);
+
+      io.to(order.buyerId).emit("order:statusChanged", {
+        orderId: order._id,
+        status: "EXPIRED",
+        updatedAt: order.updatedAt,
+      });
+      io.to(order.sellerId).emit("order:statusChanged", {
+        orderId: order._id,
+        status: "EXPIRED",
+        updatedAt: order.updatedAt,
+      });
+
+      io.to("admin").emit("admin:orderExpired", payload);
     }
 
-    // ✅ Log AdminAction with expiry reason
+    // ✅ Admin action log
     await AdminAction.create({
       adminAppwriteId: "system",
       actionType: "ORDER_EXPIRED_AUTO",
@@ -40,14 +65,25 @@ const expireUnpaidOrders = async (io) => {
         reason,
         expiredAt: new Date(),
         paymentStatus: "expired",
+        orderId: order._id,
+        buyerId: order.buyerId,
+        sellerId: order.sellerId,
       },
+    });
+
+    // ✅ Order activity log
+    await OrderActivityLog.create({
+      orderId: order._id,
+      actorId: "system",
+      action: "ORDER_EXPIRED",
+      remarks: reason,
     });
   }
 
   console.log(`✅ Auto-expired ${expiredOrders.length} unpaid orders`);
 };
 
-// 🕒 Scheduled execution (must pass io during server boot)
+// ⏰ Scheduled cron
 const registerOrderExpiryCron = (io) => {
   cron.schedule("*/10 * * * *", async () => {
     console.log("⏰ Running auto-expire unpaid orders task...");
