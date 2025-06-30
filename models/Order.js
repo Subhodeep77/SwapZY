@@ -20,7 +20,7 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["PENDING", "ACCEPTED", "REJECTED", "COMPLETED", "CANCELLED"],
+      enum: ["PENDING", "ACCEPTED", "REJECTED", "COMPLETED", "CANCELLED", "EXPIRED"], 
       default: "PENDING",
       index: true, // 📌 For filtering by status
     },
@@ -67,6 +67,10 @@ const orderSchema = new mongoose.Schema(
       refundedAt: { type: Date },
       refundReason: { type: String },
       paidAt: { type: Date }
+    },
+    expiryReason: {
+      type: String,
+      default: null,
     },
     notes: {
       type: String,

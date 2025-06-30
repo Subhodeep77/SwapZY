@@ -16,6 +16,7 @@ const expireUnpaidOrders = async (io) => {
   for (const order of expiredOrders) {
     order.paymentInfo.status = "expired";
     order.status = "EXPIRED";
+    order.expiryReason = reason; // ✅ Save the reason string
     await order.save();
 
     // ✅ Make product available again
