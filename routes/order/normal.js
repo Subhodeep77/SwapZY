@@ -11,7 +11,8 @@ const {
   undoDeleteOrderByAdmin,
   getSoftDeletedOrders,
   exportDeletedOrdersZip,
-  refundPayment
+  refundPayment,
+  toggleCron
 } = require("../../controllers/order");
 
 const { rateLimiter, refundLimiter } = require("../../utils/rateLimiter");
@@ -40,5 +41,6 @@ router.post("/:orderId/restore", verifyAppwriteToken, isAdmin, undoDeleteOrderBy
 router.get("/deleted", verifyAppwriteToken, isAdmin, getSoftDeletedOrders);
 router.get("/deleted-orders/zip", verifyAppwriteToken, isAdmin, rateLimiter, exportDeletedOrdersZip);
 router.post("/refund", verifyAppwriteToken, isAdmin, refundLimiter, refundPayment);
+router.post("/admin/toggle-cron", isAdmin, toggleCron);
 
 module.exports = router;

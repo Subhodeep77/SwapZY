@@ -22,6 +22,8 @@ const paymentRoutes = require("./routes/payment");
 const validateChatAccess = require("./middlewares/validateChatAccess");
 const registerOrderExpiryCron = require("./services/expireUnpaidOrders")
 const scheduleProductExpiry = require("./services/expireOldProduct");
+const { registerAutoCompleteCron } = require("./controllers/order");
+
 
 dotenv.config();
 
@@ -40,6 +42,7 @@ const io = new Server(httpServer, {
 app.set("io", io);
 registerOrderExpiryCron(io);
 scheduleProductExpiry(io);
+registerAutoCompleteCron(io);
 
 // 🔐 Middleware
 app.use(globalLimiter);

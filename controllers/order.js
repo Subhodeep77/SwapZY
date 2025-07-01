@@ -9,6 +9,8 @@ const archiver = require("archiver");
 const { emitToRoomIfExists } = require("../utils/socketHelper");
 const Razorpay = require("razorpay");
 const { AdminAction } = require("../models/admin"); 
+const cron = require("node-cron");
+let CRON_ENABLED = true; // 🆕 Toggle flag
 
 // Place a new order
 const placeOrder = async (req, res) => {
@@ -726,6 +728,93 @@ const refundPayment = async (req, res) => {
   }
 };
 
+
+
+const autoCompleteAcceptedOrders = async (io) => {
+  if (!CRON_ENABLED) return; // 🛑 Respect maintenance toggle
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const autoCompleteReason = "Auto-completed after 7 days of acceptance";
+
+  const orders = await Order.find({
+    status: "ACCEPTED",
+    acceptedAt: { $lt: sevenDaysAgo },
+    completedAt: null,
+  });
+
+  for (const order of orders) {
+    order.status = "COMPLETED";
+    order.completedAt = new Date();
+    await order.save();
+
+    if (io) {
+      io.to(order.buyerId).emit("order:statusChanged", {
+        orderId: order._id,
+        status: "COMPLETED",
+        updatedAt: order.updatedAt,
+      });
+      io.to(order.sellerId).emit("order:statusChanged", {
+        orderId: order._id,
+        status: "COMPLETED",
+        updatedAt: order.updatedAt,
+      });
+    }
+
+    await AdminAction.create({
+      adminAppwriteId: "system",
+      actionType: "ORDER_AUTO_COMPLETED",
+      affectedId: order._id,
+      description: autoCompleteReason,
+      metadata: {
+        autoCompletedAt: new Date(),
+        acceptedAt: order.acceptedAt,
+      },
+    });
+
+    await OrderActivityLog.create({
+      orderId: order._id,
+      actorId: "system",
+      action: "ORDER_AUTO_COMPLETED",
+      remarks: autoCompleteReason,
+    });
+
+  }
+
+  console.log(`✅ Auto-completed ${orders.length} accepted orders after 7 days`);
+};
+
+const registerAutoCompleteCron = (io) => {
+  cron.schedule("*/30 * * * *", async () => {
+    console.log("⏰ Running auto-complete accepted orders...");
+    await autoCompleteAcceptedOrders(io);
+  });
+};
+
+// Toggle cron from admin panel (runtime switch)
+const toggleCron = async (req, res) => {
+  try {
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+
+    const { enabled } = req.body;
+    if (typeof enabled !== "boolean") {
+      return res.status(400).json({ error: "Boolean 'enabled' required" });
+    }
+
+    CRON_ENABLED = enabled; // ✅ update the outer variable, do NOT use 'const'
+    res.json({
+      success: true,
+      message: `Cron ${enabled ? "enabled" : "disabled"}`,
+      currentStatus: CRON_ENABLED,
+    });
+  } catch (err) {
+    console.error("Toggle cron error:", err);
+    res.status(500).json({ error: "Failed to toggle cron" });
+  }
+};
+
+
 module.exports = {
   placeOrder,
   respondToOrder,
@@ -740,5 +829,8 @@ module.exports = {
   undoDeleteOrderByAdmin,
   getSoftDeletedOrders,
   exportDeletedOrdersZip,
-  refundPayment
+  refundPayment,
+  registerAutoCompleteCron,
+  CRON_ENABLED,
+  toggleCron
 };
