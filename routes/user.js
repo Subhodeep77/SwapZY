@@ -8,8 +8,9 @@ const { deleteUserAccount, initUserProfile, updateUserProfile } = require("../co
 // Just use default multer (no storage config needed)
 const upload = multer(); 
 
-router.post("/init", verifyAppwriteToken, upload.single("avatar"), initUserProfile);
-router.delete("/delete-account", verifyAppwriteToken, deleteUserAccount);
-router.post('/user/update', verifyAppwriteToken, updateUserProfile);
+router.use(verifyAppwriteToken);
+router.post("/init", upload.single("avatar"), initUserProfile);
+router.delete("/delete-account", deleteUserAccount);
+router.post('/user/update', updateUserProfile);
 console.log("Loaded user routes");
 module.exports = router;
