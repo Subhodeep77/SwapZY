@@ -43,5 +43,19 @@ It enables students to list, browse, and interact with product listings on a col
 | Database  | Appwrite(users) and MongoDB (products, orders, logs) |
 | DevOps    | Git, GitHub, REST APIs         |
 
+---
+## 🧑‍💻 Author
+
+- Subhodeep Paramanik
+- GitHub: @Subhodeep77
+- Working on React, Node.js, and full‑stack apps.
+
+---
+Let me know if you also want:
+- `.env.example` templates  
+- README badges (e.g., Node version, License, Deployed on Vercel)  
+- Deployment instructions (Vercel + Render)  
+
+Happy coding! 🚀
 
 
