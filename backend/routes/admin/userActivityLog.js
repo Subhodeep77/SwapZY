@@ -1,0 +1,23 @@
+const express = require("express");
+const router = express.Router();
+const {
+  getRecentUserActivities,
+  createUserActivityLog
+} = require("../../controllers/admin/userActivityLog");
+
+const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
+const isAdmin = require("../../middlewares/isAdmin");
+
+router.get("/", verifyAppwriteToken, isAdmin, getRecentUserActivities);
+
+router.post("/", verifyAppwriteToken, isAdmin, async (req, res) => {
+  try {
+    await createUserActivityLog(req.body);
+    res.status(201).json({ success: true, message: "Activity log created" });
+  } catch (error) {
+    console.error("Activity log creation error:", error);
+    res.status(500).json({ error: "Failed to create activity log" });
+  }
+});
+
+module.exports = router;
