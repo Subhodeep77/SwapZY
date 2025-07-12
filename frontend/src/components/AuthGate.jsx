@@ -11,7 +11,6 @@ const AuthGate = ({ children }) => {
   useEffect(() => {
     const checkUserProfile = async () => {
       try {
-        const user = await authService.getCurrentUser();
         const token = await authService.getJWT();
 
         const res = await axios.get("/api/users/me", {
@@ -23,6 +22,7 @@ const AuthGate = ({ children }) => {
         if (!res.data || !res.data.appwriteId) {
           navigate("/profile/init");
         }
+      // eslint-disable-next-line no-unused-vars
       } catch (err) {
         console.warn("User profile not found, redirecting to init");
         navigate("/profile/init");
