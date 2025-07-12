@@ -9,7 +9,7 @@ import RecentProductCard from "../components/RecentProductCard";
 import WishlistCard from "../components/WishlistCard";
 import CategoryBreakdownChart from "../components/CategoryBreakdownChart";
 import StatCard from "../components/StatCard";
-import { Helmet } from "react-helmet";
+import PageHelmet from "../components/PageHelmet";
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -52,9 +52,10 @@ const Dashboard = () => {
 
   return (
     <div className="p-4 max-w-7xl mx-auto">
-      <Helmet>
-        <title>My Dashboard | SwapZY</title>
-      </Helmet>
+      <PageHelmet
+        title="Dashboard"
+        description="Track your products, orders, and wishlist - all from one dashboard."
+      />
 
       <h1 className="text-3xl font-bold mb-6">Welcome back, {user.name}!</h1>
 
@@ -68,7 +69,10 @@ const Dashboard = () => {
 
       {/* Wishlist Stats */}
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatCard title="Total Wishlisted By You" value={wishlistStats.totalWishlistedByUser} />
+        <StatCard
+          title="Total Wishlisted By You"
+          value={wishlistStats.totalWishlistedByUser}
+        />
       </div>
 
       {/* Views & Category Breakdown */}
@@ -80,8 +84,12 @@ const Dashboard = () => {
       {/* Most Wishlisted Product Owned */}
       {wishlistStats.mostWishlistedOwnedProduct && (
         <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-3">🔥 Most Wishlisted Product You Own</h2>
-          <RecentProductCard product={wishlistStats.mostWishlistedOwnedProduct} />
+          <h2 className="text-xl font-semibold mb-3">
+            🔥 Most Wishlisted Product You Own
+          </h2>
+          <RecentProductCard
+            product={wishlistStats.mostWishlistedOwnedProduct}
+          />
         </div>
       )}
 
