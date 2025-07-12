@@ -4,9 +4,11 @@ import authService from "../appwrite/authService";
 import axios from "axios";
 import Loader from "../components/Loader";
 import ProfileCard from "../components/ProfileCard";
-import StatCard from "../components/StatCard";
+import ProductStatsCard from "../components/ProductStatsCard";
 import RecentProductCard from "../components/RecentProductCard";
 import WishlistCard from "../components/WishlistCard";
+import CategoryBreakdownChart from "../components/CategoryBreakdownChart";
+import StatCard from "../components/StatCard";
 import { Helmet } from "react-helmet";
 
 const Dashboard = () => {
@@ -17,7 +19,10 @@ const Dashboard = () => {
     document.title = "Dashboard | SwapZY";
     const meta = document.querySelector("meta[name='description']");
     if (meta) {
-      meta.setAttribute("content", "Track your products, orders, and wishlist - all from one dashboard.");
+      meta.setAttribute(
+        "content",
+        "Track your products, orders, and wishlist - all from one dashboard."
+      );
     }
 
     const fetchDashboard = async () => {
@@ -40,7 +45,8 @@ const Dashboard = () => {
   }, []);
 
   if (loading) return <Loader />;
-  if (!dashboardData) return <div className="text-center py-10">Failed to load dashboard</div>;
+  if (!dashboardData)
+    return <div className="text-center py-10">Failed to load dashboard</div>;
 
   const { user, productStats, wishlistStats } = dashboardData;
 
@@ -55,25 +61,35 @@ const Dashboard = () => {
       {/* Profile Overview */}
       <ProfileCard user={user} />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <StatCard title="Total Products" value={productStats.total} />
-        <StatCard title="Available" value={productStats.available} />
-        <StatCard title="Sold" value={productStats.sold} />
-        <StatCard title="Expired" value={productStats.expired} />
+      {/* Product Stats Card */}
+      <div className="mt-6">
+        <ProductStatsCard stats={productStats} />
+      </div>
+
+      {/* Wishlist Stats */}
+      <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard title="Total Wishlisted By You" value={wishlistStats.totalWishlistedByUser} />
       </div>
 
       {/* Views & Category Breakdown */}
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <StatCard title="Total Views" value={productStats.views} />
-        {/* PieChart or BarChart can be placed here */}
+        <CategoryBreakdownChart data={productStats.categoryBreakdown} />
       </div>
+
+      {/* Most Wishlisted Product Owned */}
+      {wishlistStats.mostWishlistedOwnedProduct && (
+        <div className="mt-10">
+          <h2 className="text-xl font-semibold mb-3">🔥 Most Wishlisted Product You Own</h2>
+          <RecentProductCard product={wishlistStats.mostWishlistedOwnedProduct} />
+        </div>
+      )}
 
       {/* Recent Uploads */}
       <div className="mt-10">
         <h2 className="text-xl font-semibold mb-3">Recent Uploads</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {productStats.recentUploads.map(product => (
+          {productStats.recentUploads.map((product) => (
             <RecentProductCard key={product._id} product={product} />
           ))}
         </div>
@@ -83,7 +99,7 @@ const Dashboard = () => {
       <div className="mt-10">
         <h2 className="text-xl font-semibold mb-3">Recently Wishlisted</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {wishlistStats.recentWishlist.map(entry => (
+          {wishlistStats.recentWishlist.map((entry) => (
             <WishlistCard key={entry._id} entry={entry} />
           ))}
         </div>
