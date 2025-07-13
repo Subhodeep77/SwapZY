@@ -3,7 +3,7 @@ import authService from "../appwrite/authService";
 import { motion } from "framer-motion";
 import { FcGoogle } from "react-icons/fc";
 import PageHelmet from "../components/PageHelmet";
-import mascotImg from "../assets/SwapZY_mascot.png"; // ✅ make sure this path is correct
+import mascotImg from "../assets/swapzy_mascot.png"; // ✅ make sure this path is correct
 
 const MotionDiv = motion.div;
 
