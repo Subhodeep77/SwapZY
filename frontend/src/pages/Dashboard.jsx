@@ -9,7 +9,7 @@ import WishlistCard from "../components/WishlistCard";
 import CategoryBreakdownChart from "../components/CategoryBreakdownChart";
 import StatCard from "../components/StatCard";
 import PageHelmet from "../components/PageHelmet";
-import mascotImg from "../assets/swapzy-mascot.png"; // ✅ Ensure image exists
+import mascotImg from "../assets/swapzy_mascot.png"; // ✅ Ensure image exists
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
