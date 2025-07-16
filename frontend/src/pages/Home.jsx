@@ -22,7 +22,10 @@ const Home = () => {
       <HowItWorksSection />
       <ProductHighlights />
       <TestimonialSection />
-      <FAQSection />
+      {/* Add ID here for anchor navigation */}
+      <section id="faqs">
+        <FAQSection />
+      </section>
       <Footer />
     </>
   );

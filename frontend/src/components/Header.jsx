@@ -3,18 +3,14 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/solid";
 import ThemeToggle from "./ThemeToggle";
 import { useAuthContext } from "../context/auth.context";
-
-const navLinks = [
-  { label: "Home", path: "/" },
-  { label: "Browse", path: "/browse" },
-  { label: "Dashboard", path: "/dashboard" },
-  { label: "FAQs", path: "/#faqs" },
-];
+import getNavLinks from "../config/nav.js"; // ✅ import is fine
 
 const Header = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { authUser, loading, logout } = useAuthContext();
   const navigate = useNavigate();
+
+  const navLinks = getNavLinks(authUser); // ✅ call the function with authUser
 
   const handleLogout = async () => {
     await logout();

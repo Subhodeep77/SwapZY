@@ -4,6 +4,7 @@ import Login from "../pages/Login";
 import Dashboard from "../pages/Dashboard";
 import UserProfileForm from "../components/UserProfileForm";
 import AuthGate from "../components/AuthGate"; // ✅ Import it
+import AdminDashboard from "../pages/admin/AdminDashboard";
 
 const AppRoutes = () => {
   return (
@@ -17,6 +18,14 @@ const AppRoutes = () => {
           element={
             <AuthGate>
               <Dashboard />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <AuthGate roles={["ADMIN"]}>
+              <AdminDashboard />
             </AuthGate>
           }
         />
