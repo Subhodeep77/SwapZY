@@ -68,11 +68,11 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/wishlist", wishlistRoutes);
-app.use("/admin", adminRoutes);
-app.use("/order", orderRoutes);
-app.use("/chat", chatRoutes);
-app.use("/webhook", webhookRoutes);
-app.use("/payment", paymentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/order", orderRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/webhook", webhookRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // ⚙️ DB + Server startup
 // ...[unchanged imports and config setup above]...
