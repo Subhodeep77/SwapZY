@@ -2,16 +2,12 @@
 import { account } from "./config";
 
 class AuthService {
-  /**
-   * Logs in the user using Google OAuth2.
-   * Automatically redirects to Google.
-   */
   async loginWithGoogle() {
     try {
       await account.createOAuth2Session(
         "google",
-        import.meta.env.VITE_OAUTH_SUCCESS_REDIRECT, // e.g. http://localhost:5173/
-        import.meta.env.VITE_OAUTH_FAILURE_REDIRECT // e.g. http://localhost:5173/login
+        import.meta.env.VITE_OAUTH_SUCCESS_REDIRECT,
+        import.meta.env.VITE_OAUTH_FAILURE_REDIRECT
       );
     } catch (error) {
       console.error("OAuth2 login failed:", error);
@@ -19,9 +15,6 @@ class AuthService {
     }
   }
 
-  /**
-   * Gets the currently authenticated user.
-   */
   async getCurrentUser() {
     try {
       return await account.get();
@@ -31,14 +24,24 @@ class AuthService {
     }
   }
 
-  /**
-   * Logs out the currently logged-in user.
-   */
   async logout() {
     try {
       await account.deleteSession("current");
     } catch (error) {
       console.error("Logout failed:", error);
+    }
+  }
+
+  /**
+   * Gets the JWT for secure backend API calls.
+   */
+  async getJWT() {
+    try {
+      const session = await account.createJWT();
+      return session.jwt;
+    } catch (error) {
+      console.error("Failed to get JWT:", error);
+      return null;
     }
   }
 }

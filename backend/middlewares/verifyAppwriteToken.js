@@ -1,29 +1,34 @@
 // middlewares/verifyAppwriteToken.js
-const { users } = require("../config/appwrite");
+const sdk = require("node-appwrite");
 const isStudentEmail = require("../utils/isStudentEmail");
 
 const verifyAppwriteToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.startsWith("Bearer ")
-    ? authHeader.split(" ")[1]
-    : null;
-  req.user = null;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+
   if (!token) {
     return res.status(401).json({ error: "No token provided" });
   }
 
   try {
-    // Get current user info from Appwrite
-    const user = await users.get();
+    // Recreate user-scoped client using JWT
+    const client = new sdk.Client()
+      .setEndpoint(process.env.APPWRITE_ENDPOINT)
+      .setProject(process.env.APPWRITE_PROJECT_ID)
+      .setJWT(token);
 
-    // Check if the user's email is a student email
-    if (!isStudentEmail(user.email)) {
-      return res.status(403).json({
-        error: "Access restricted to verified student email addresses.",
-      });
+    const account = new sdk.Account(client);
+    const user = await account.get();
+
+    if (!user || !user.email) {
+      throw new Error("Invalid JWT or user not found");
     }
 
-    // Attach user info to req.user for downstream usage
+    // ✅ Use your utility function here
+    if (!isStudentEmail(user.email)) {
+      return res.status(403).json({ error: "Only students allowed" });
+    }
+
     req.user = {
       appwriteId: user.$id,
       email: user.email,
@@ -32,7 +37,7 @@ const verifyAppwriteToken = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error("Token verification failed:", err.message);
+    console.error("JWT verification failed:", err.message);
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
