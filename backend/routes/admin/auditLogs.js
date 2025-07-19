@@ -9,7 +9,7 @@ const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 router.get("/", verifyAppwriteToken, isAdmin, getAllAuditLogs);
 
 // POST: Create a new audit log manually (for admin testing or internal use)
-router.post("/", verifyAppwriteToken, isAdmin, async (req, res) => {
+router.post("/create", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     await createAuditLog(req.body);
     res.status(201).json({ success: true, message: "Audit log created" });

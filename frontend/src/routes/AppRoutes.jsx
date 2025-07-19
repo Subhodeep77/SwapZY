@@ -3,8 +3,9 @@ import Home from "../pages/Home";
 import Login from "../pages/Login";
 import Dashboard from "../pages/Dashboard";
 import UserProfileForm from "../components/UserProfileForm";
-import AuthGate from "../components/AuthGate"; // ✅ Import it
+import AuthGate from "../components/AuthGate";
 import AdminDashboard from "../pages/admin/AdminDashboard";
+import ProductViewLogsPage from "../pages/admin/ProductViewLogsPage"; // ✅
 
 const AppRoutes = () => {
   return (
@@ -26,6 +27,14 @@ const AppRoutes = () => {
           element={
             <AuthGate roles={["ADMIN"]}>
               <AdminDashboard />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/admin/product-views/:productId"
+          element={
+            <AuthGate roles={["ADMIN"]}>
+              <ProductViewLogsPage />
             </AuthGate>
           }
         />
