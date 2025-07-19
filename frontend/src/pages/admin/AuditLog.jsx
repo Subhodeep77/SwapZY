@@ -88,6 +88,7 @@ const AuditLogs = () => {
     let parsedMetadata;
     try {
       parsedMetadata = JSON.parse(newLog.metadata || "{}");
+    // eslint-disable-next-line no-unused-vars
     } catch (err) {
       alert("❌ Metadata must be valid JSON.");
       return;

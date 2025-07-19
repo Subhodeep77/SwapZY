@@ -6,6 +6,7 @@ import UserProfileForm from "../components/UserProfileForm";
 import AuthGate from "../components/AuthGate";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import ProductViewLogsPage from "../pages/admin/ProductViewLogsPage"; // ✅
+import AdminNotifications from "../pages/admin/Notifications";
 
 const AppRoutes = () => {
   return (
@@ -35,6 +36,14 @@ const AppRoutes = () => {
           element={
             <AuthGate roles={["ADMIN"]}>
               <ProductViewLogsPage />
+            </AuthGate>
+          }
+        />
+         <Route
+          path="/admin/notifications"
+          element={
+            <AuthGate roles={["ADMIN"]}>
+              <AdminNotifications />
             </AuthGate>
           }
         />
