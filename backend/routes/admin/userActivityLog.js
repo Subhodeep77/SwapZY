@@ -10,7 +10,7 @@ const isAdmin = require("../../middlewares/isAdmin");
 
 router.get("/", verifyAppwriteToken, isAdmin, getRecentUserActivities);
 
-router.post("/", verifyAppwriteToken, isAdmin, async (req, res) => {
+router.post("/create", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     await createUserActivityLog(req.body);
     res.status(201).json({ success: true, message: "Activity log created" });

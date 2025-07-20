@@ -12,7 +12,7 @@ const isAdmin = require("../../middlewares/isAdmin");
 router.get("/", verifyAppwriteToken, isAdmin, getRecentAdminActions);
 
 // 🔐 POST: Log new admin action
-router.post("/", verifyAppwriteToken, isAdmin, async (req, res) => {
+router.post("/create", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     await createAdminAction(req.body);
     res.status(201).json({ success: true, message: "Admin action logged" });

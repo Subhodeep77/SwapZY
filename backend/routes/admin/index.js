@@ -9,6 +9,7 @@ router.use("/product-views", require("./productView"));
 router.use("/users", require("./userManagement"));
 router.use("/admin-login-log", require("./adminLoginLog"));
 router.use("/notifications", require("./notifications"));
+router.use("/admins", require("./admins"));
 
 console.log('Loaded admin routes');
 
