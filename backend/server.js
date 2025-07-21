@@ -73,6 +73,7 @@ app.use("/api/order", orderRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/webhook", webhookRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/categories", require("./routes/category"));
 
 // ⚙️ DB + Server startup
 // ...[unchanged imports and config setup above]...

@@ -1,8 +1,9 @@
-// routes/admin/adminsRoutes.js
 const router = require("express").Router();
 const { getAllAdmins } = require("../../controllers/admin/admins");
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 const isAdmin = require("../../middlewares/isAdmin");
 
-router.get("/", verifyAppwriteToken, isAdmin, getAllAdmins);
+// GET /api/admin/admins/map — returns adminId to name mapping
+router.get("/map", verifyAppwriteToken, isAdmin, getAllAdmins);
+
 module.exports = router;

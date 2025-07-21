@@ -3,7 +3,7 @@ const Wishlist = require("../../models/Wishlist");
 
 const getNearbyProducts = async (req, res) => {
   try {
-    const { lng, lat, college, city, district, state } = req.query;
+    const { lng, lat, college, city, district, state, page = 1, limit = 30 } = req.query;
     const currentUserId = req.user?.appwriteId;
 
     if (!lng || !lat || !college || !city || !state) {
@@ -29,10 +29,10 @@ const getNearbyProducts = async (req, res) => {
       { filter: {}, maxDistance: 100 * 1000 },
     ].filter(Boolean);
 
-    let products = [];
+    let allResults = new Map(); // To merge without duplicates
 
     for (const level of searchLevels) {
-      const result = await Product.aggregate([
+      const results = await Product.aggregate([
         {
           $geoNear: {
             near: userLocation,
@@ -46,23 +46,27 @@ const getNearbyProducts = async (req, res) => {
           },
         },
         { $sort: { createdAt: -1 } },
-        { $limit: 30 },
       ]);
 
-      if (result.length > 0) {
-        products = result;
-        break;
+      for (const product of results) {
+        const id = product._id.toString();
+        if (!allResults.has(id)) {
+          allResults.set(id, product);
+        }
       }
     }
 
-    const productIds = products.map((p) => p._id);
+    const mergedResults = Array.from(allResults.values());
 
-    // Get wishlist entries for these products
+    // Pagination
+    const start = (parseInt(page) - 1) * parseInt(limit);
+    const paginated = mergedResults.slice(start, start + parseInt(limit));
+
+    const productIds = paginated.map((p) => p._id);
     const wishlistEntries = await Wishlist.find({
       productId: { $in: productIds },
     }).select("productId userId");
 
-    // Prepare map for count and user-specific wishlist detection
     const wishlistCountMap = {};
     const wishlistedIds = new Set();
 
@@ -74,7 +78,7 @@ const getNearbyProducts = async (req, res) => {
       }
     });
 
-    const enriched = products.map((product) => ({
+    const enriched = paginated.map((product) => ({
       ...product,
       isMine: currentUserId === product.ownerId,
       isWishlisted: wishlistedIds.has(product._id.toString()),
@@ -82,7 +86,12 @@ const getNearbyProducts = async (req, res) => {
       images: product.images || [],
     }));
 
-    res.status(200).json(enriched);
+    res.status(200).json({
+      data: enriched,
+      total: mergedResults.length,
+      page: parseInt(page),
+      limit: parseInt(limit),
+    });
   } catch (err) {
     console.error("Error getting nearby products:", err);
     res.status(500).json({ error: "Server error" });

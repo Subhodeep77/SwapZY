@@ -1,18 +1,25 @@
 // routes/admin/adminLoginLog.js
 const express = require("express");
 const router = express.Router();
+
 const { createAdminAction } = require("../../controllers/admin/adminAction");
+const { getAdminMap } = require("../../controllers/admin/admins");
+const { AdminAction } = require("../../models/admin");
+
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 const isAdmin = require("../../middlewares/isAdmin");
 
+// ✅ Log Admin Login
 router.post("/log", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     const { $id: adminAppwriteId } = req.user;
+    const adminMap = await getAdminMap();
+    const name = adminMap[adminAppwriteId] || "Unknown Admin";
 
     await createAdminAction({
       adminAppwriteId,
       actionType: "ADMIN_LOGIN",
-      description: "Admin logged in",
+      description: `Admin ${name} logged in`,
       affectedId: adminAppwriteId,
     });
 
@@ -23,15 +30,17 @@ router.post("/log", verifyAppwriteToken, isAdmin, async (req, res) => {
   }
 });
 
-// routes/admin/adminLoginLog.js (continued)
+// ✅ Log Admin Logout
 router.post("/log-logout", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     const { $id: adminAppwriteId } = req.user;
+    const adminMap = await getAdminMap();
+    const name = adminMap[adminAppwriteId] || "Unknown Admin";
 
     await createAdminAction({
       adminAppwriteId,
       actionType: "ADMIN_LOGOUT",
-      description: "Admin logged out",
+      description: `Admin ${name} logged out`,
       affectedId: adminAppwriteId,
     });
 
@@ -42,7 +51,7 @@ router.post("/log-logout", verifyAppwriteToken, isAdmin, async (req, res) => {
   }
 });
 
-// Add this to your /api/admin/admin-login-log route
+// ✅ Fetch Admin Login/Logout Logs
 router.get("/", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -61,8 +70,9 @@ router.get("/", verifyAppwriteToken, isAdmin, async (req, res) => {
       }),
     ]);
 
-    res.json({
-      logs,
+    res.status(200).json({
+      success: true,
+      data: logs,
       pagination: {
         page,
         totalPages: Math.ceil(totalCount / limit),
@@ -74,7 +84,5 @@ router.get("/", verifyAppwriteToken, isAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch logs" });
   }
 });
-
-
 
 module.exports = router;

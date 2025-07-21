@@ -11,6 +11,7 @@ const useAuthUser = () => {
       try {
         const user = await account.get();
         setAuthUser(user);
+      // eslint-disable-next-line no-unused-vars
       } catch (err) {
         setAuthUser(null);
       } finally {

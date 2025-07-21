@@ -6,23 +6,35 @@ import Loader from "../../components/Loader";
 
 const AdminLoginLogs = () => {
   const [logs, setLogs] = useState([]);
+  const [adminMap, setAdminMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
- const fetchLoginLogs = useCallback(async () => {
-  try {
-    setLoading(true);
-    const res = await axios.get(`/api/admin/admin-login-log?page=${page}&limit=10`);
-    setLogs(res.data.logs || []);
-    setTotalPages(res.data.pagination?.totalPages || 1);
-  } catch (error) {
-    console.error("Failed to fetch admin login logs:", error.message);
-  } finally {
-    setLoading(false);
-  }
-}, [page]);
+  // Fetch the login logs
+  const fetchLoginLogs = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`/api/admin/admin-login-log?page=${page}&limit=10`);
+      setLogs(res.data.data || []);
+      setTotalPages(res.data.pagination?.totalPages || 1);
+    } catch (error) {
+      console.error("Failed to fetch admin login logs:", error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [page]);
+
+  // Fetch the admin ID → name map
+  const fetchAdminMap = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/admin/admins/map");
+      setAdminMap(res.data.adminMap || {});
+    } catch (err) {
+      console.error("Failed to fetch admin name map:", err.message);
+    }
+  }, []);
 
   const handleManualLog = async (type) => {
     try {
@@ -41,8 +53,9 @@ const AdminLoginLogs = () => {
   };
 
   useEffect(() => {
+    fetchAdminMap();
     fetchLoginLogs();
-  }, [fetchLoginLogs]);
+  }, [fetchAdminMap, fetchLoginLogs]);
 
   return (
     <div className="p-6">
@@ -53,15 +66,15 @@ const AdminLoginLogs = () => {
         <div className="space-x-3">
           <button
             onClick={() => handleManualLog("login")}
-            disabled={posting}
-            className="bg-blue-600 text-white px-4 py-2 text-sm rounded-md hover:bg-blue-700 transition"
+            disabled={posting || loading}
+            className="bg-blue-600 text-white px-4 py-2 text-sm rounded-md hover:bg-blue-700 transition disabled:opacity-50"
           >
             Log Login
           </button>
           <button
             onClick={() => handleManualLog("logout")}
-            disabled={posting}
-            className="bg-red-500 text-white px-4 py-2 text-sm rounded-md hover:bg-red-600 transition"
+            disabled={posting || loading}
+            className="bg-red-500 text-white px-4 py-2 text-sm rounded-md hover:bg-red-600 transition disabled:opacity-50"
           >
             Log Logout
           </button>
@@ -81,7 +94,7 @@ const AdminLoginLogs = () => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">#</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Admin ID</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Admin</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Action</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Description</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Timestamp</th>
@@ -91,7 +104,9 @@ const AdminLoginLogs = () => {
                 {logs.map((log, idx) => (
                   <tr key={log._id}>
                     <td className="px-4 py-2 text-sm text-gray-700">{(page - 1) * 10 + idx + 1}</td>
-                    <td className="px-4 py-2 text-sm text-blue-600">{log.adminAppwriteId}</td>
+                    <td className="px-4 py-2 text-sm text-blue-600">
+                      {adminMap[log.adminAppwriteId] || log.adminAppwriteId}
+                    </td>
                     <td className="px-4 py-2 text-sm">{log.actionType}</td>
                     <td className="px-4 py-2 text-sm text-gray-600">{log.description}</td>
                     <td className="px-4 py-2 text-sm text-gray-500">
@@ -107,15 +122,17 @@ const AdminLoginLogs = () => {
           <div className="flex justify-center mt-6 space-x-4">
             <button
               onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={page === 1}
+              disabled={page === 1 || loading}
               className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
             >
               Previous
             </button>
-            <span className="text-sm text-gray-600 mt-2">Page {page} of {totalPages}</span>
+            <span className="text-sm text-gray-600 mt-2">
+              Page {page} of {totalPages}
+            </span>
             <button
               onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={page === totalPages}
+              disabled={page === totalPages || loading}
               className="px-4 py-2 text-sm bg-gray-200 rounded hover:bg-gray-300 disabled:opacity-50"
             >
               Next

@@ -11,6 +11,8 @@ import AuditLogs from "../pages/admin/AuditLog";
 import AdminActions from "../pages/admin/AdminAction";
 import AdminUserActivityLogsPage from "../pages/admin/UserActivityLogs";
 import AdminUserManagementPage from "../pages/admin/UserManagement";
+import AdminLoginLogs from "../pages/admin/AdminLoginLogs";
+import HomeFeed from "../pages/product/HomeFeed"
 
 const AppRoutes = () => {
   return (
@@ -83,6 +85,15 @@ const AppRoutes = () => {
             </AuthGate>
           }
         />
+        <Route
+          path="/admin/admin-login-log"
+          element={
+            <AuthGate roles={["ADMIN"]}>
+              <AdminLoginLogs/>
+            </AuthGate>
+          }
+        />
+        <Route path="/products" element={<HomeFeed/>} />
       </Routes>
     </Router>
   );

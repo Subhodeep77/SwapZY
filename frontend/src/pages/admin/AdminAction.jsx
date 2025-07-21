@@ -8,19 +8,20 @@ const AdminActions = () => {
   const [actions, setActions] = useState([]);
   const [adminMap, setAdminMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [adminMapError, setAdminMapError] = useState(false);
+
   const [page, setPage] = useState(1);
   const [actionType, setActionType] = useState("ALL");
   const [selectedAdminId, setSelectedAdminId] = useState("ALL");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Form state
   const [showForm, setShowForm] = useState(false);
   const [newAction, setNewAction] = useState({
     adminAppwriteId: "",
     actionType: "DELETE",
     description: "",
-    affectedId: ""
+    affectedId: "",
   });
 
   const limit = 50;
@@ -37,20 +38,24 @@ const AdminActions = () => {
     }
   }, [page]);
 
-  const fetchAdminMap = async () => {
+  const fetchAdminMap = useCallback(async () => {
     try {
-      const res = await axios.get("/api/admin/admins");
+      const res = await axios.get(`/api/admin/admins/map`); // cache-busting param
       if (res.data.success) {
         setAdminMap(res.data.adminMap || {});
+        setAdminMapError(false);
+      } else {
+        setAdminMapError(true);
       }
     } catch (error) {
       console.error("Error fetching admin map:", error);
+      setAdminMapError(true);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchAdminMap();
-  }, []);
+  }, [fetchAdminMap]);
 
   useEffect(() => {
     fetchActions();
@@ -59,7 +64,8 @@ const AdminActions = () => {
   const filteredActions = actions.filter((action) => {
     const timestamp = new Date(action.timestamp);
     const matchType = actionType === "ALL" || action.actionType === actionType;
-    const matchAdmin = selectedAdminId === "ALL" || action.adminAppwriteId === selectedAdminId;
+    const matchAdmin =
+      selectedAdminId === "ALL" || action.adminAppwriteId === selectedAdminId;
     const matchFrom = !dateFrom || isAfter(timestamp, new Date(dateFrom));
     const matchTo = !dateTo || isBefore(timestamp, new Date(dateTo));
     return matchType && matchAdmin && matchFrom && matchTo;
@@ -74,8 +80,9 @@ const AdminActions = () => {
         adminAppwriteId: "",
         actionType: "DELETE",
         description: "",
-        affectedId: ""
+        affectedId: "",
       });
+      setPage(1); // reset to first page
       fetchActions(); // refresh list
     } catch (err) {
       console.error("Failed to log action:", err);
@@ -90,7 +97,9 @@ const AdminActions = () => {
       />
 
       <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">📝 Admin Actions</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">
+          📝 Admin Actions
+        </h1>
 
         {/* Button to show form */}
         <div className="mb-6">
@@ -109,12 +118,17 @@ const AdminActions = () => {
             className="bg-white p-4 rounded-lg shadow mb-6 space-y-4"
           >
             <div>
-              <label className="block text-sm font-medium text-gray-700">Admin</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Admin
+              </label>
               <select
                 required
                 value={newAction.adminAppwriteId}
                 onChange={(e) =>
-                  setNewAction({ ...newAction, adminAppwriteId: e.target.value })
+                  setNewAction({
+                    ...newAction,
+                    adminAppwriteId: e.target.value,
+                  })
                 }
                 className="w-full mt-1 px-3 py-2 border rounded"
               >
@@ -125,10 +139,17 @@ const AdminActions = () => {
                   </option>
                 ))}
               </select>
+              {adminMapError && (
+                <p className="text-sm text-red-500 mt-1">
+                  ⚠️ Failed to load admin list.
+                </p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Action Type</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Action Type
+              </label>
               <select
                 required
                 value={newAction.actionType}
@@ -144,7 +165,9 @@ const AdminActions = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Affected ID</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Affected ID
+              </label>
               <input
                 type="text"
                 required
@@ -157,7 +180,9 @@ const AdminActions = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
               <textarea
                 value={newAction.description}
                 onChange={(e) =>
@@ -227,7 +252,11 @@ const AdminActions = () => {
           <Loader />
         ) : filteredActions.length === 0 ? (
           <div className="text-center py-16">
-            <img src="/mascot-empty.svg" alt="No logs" className="w-40 mx-auto mb-4" />
+            <img
+              src="/mascot-empty.svg"
+              alt="No logs"
+              className="w-40 mx-auto mb-4"
+            />
             <p className="text-gray-500 text-lg">No admin actions found.</p>
           </div>
         ) : (
@@ -244,15 +273,27 @@ const AdminActions = () => {
               </thead>
               <tbody>
                 {filteredActions.map((action, idx) => (
-                  <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2 font-medium text-gray-800">{action.actionType}</td>
-                    <td className="px-4 py-2 text-gray-600">
-                      {adminMap[action.adminAppwriteId] || action.adminAppwriteId}
+                  <tr
+                    key={idx}
+                    className="border-t border-gray-100 hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-2 font-medium text-gray-800">
+                      {action.actionType}
                     </td>
-                    <td className="px-4 py-2 text-gray-500">{action.description || "—"}</td>
-                    <td className="px-4 py-2 text-gray-500">{action.affectedId}</td>
+                    <td className="px-4 py-2 text-gray-600">
+                      {adminMap[action.adminAppwriteId] ||
+                        action.adminAppwriteId}
+                    </td>
+                    <td className="px-4 py-2 text-gray-500">
+                      {action.description || "—"}
+                    </td>
+                    <td className="px-4 py-2 text-gray-500">
+                      {action.affectedId}
+                    </td>
                     <td className="px-4 py-2 text-gray-400">
-                      {formatDistanceToNow(new Date(action.timestamp), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(action.timestamp), {
+                        addSuffix: true,
+                      })}
                     </td>
                   </tr>
                 ))}
