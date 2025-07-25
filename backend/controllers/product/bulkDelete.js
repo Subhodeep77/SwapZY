@@ -1,11 +1,18 @@
 const mongoose = require("mongoose");
 const Product = require("../../models/Product");
-const { storage } = require("../../config/appwrite");
+const { getUserServices } = require("../../config/appwrite");
 
 async function bulkDeleteProducts(req, res) {
   try {
     const { productIds } = req.body;
     const userId = req.user.appwriteId;
+    const jwt = req.headers.authorization?.split(" ")[1];
+
+    if (!jwt) {
+      return res.status(401).json({ error: "JWT token missing." });
+    }
+
+    const { storage } = getUserServices(jwt);
 
     // 1️⃣ Validate input
     if (!Array.isArray(productIds) || productIds.length === 0) {

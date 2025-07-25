@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const useNearbyProducts = ({ location, page = 1, limit = 30 }) => {
+const useNearbyProducts = ({
+  location,
+  page = 1,
+  limit = 30,
+  sort = "latest",
+  minPrice,
+  maxPrice,
+  category,
+  condition,
+}) => {
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(false); // Set false initially
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -19,24 +28,34 @@ const useNearbyProducts = ({ location, page = 1, limit = 30 }) => {
     const fetchNearby = async () => {
       setLoading(true);
       try {
-        const res = await axios.get("/api/products/nearby", {
-          params: {
-            college: location.college,
-            city: location.city,
-            district: location.district,
-            state: location.state,
-            lng: location.lng,
-            lat: location.lat,
-            page,
-            limit,
-          },
-        });
+        const params = {
+          lng: location.lng,
+          lat: location.lat,
+          college: location.college,
+          city: location.city,
+          district: location.district,
+          state: location.state,
+          page,
+          limit,
+          sort,
+        };
+
+        if (minPrice !== undefined) params.minPrice = minPrice;
+        if (maxPrice !== undefined) params.maxPrice = maxPrice;
+        if (category) params.category = category;
+        if (condition) params.condition = condition;
+
+        const res = await axios.get("/api/products/nearby", { params });
 
         setProducts(res.data.data || []);
         setTotal(res.data.total || 0);
         setError(null);
       } catch (err) {
-        setError(err?.response?.data?.message || err.message || "Failed to fetch products");
+        setError(
+          err?.response?.data?.error ||
+          err.message ||
+          "Failed to fetch nearby products"
+        );
         setProducts([]);
         setTotal(0);
       } finally {
@@ -45,7 +64,7 @@ const useNearbyProducts = ({ location, page = 1, limit = 30 }) => {
     };
 
     fetchNearby();
-  }, [location, page, limit]);
+  }, [location, page, limit, sort, minPrice, maxPrice, category, condition]);
 
   return { products, total, loading, error };
 };

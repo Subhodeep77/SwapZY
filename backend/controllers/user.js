@@ -1,5 +1,5 @@
 const { cleanupUserProducts } = require("../utils/cleanup");
-const { users, storage, ID } = require("../config/appwrite");
+const { getUserUsers, getUserStorage, ID} = require("../config/appwrite");
 const sharp = require("sharp");
 const {
   createUser,
@@ -7,6 +7,26 @@ const {
   updateUser,
   deleteUser,
 } = require("../services/user");
+
+
+async function getAuthenticatedUser(req, res) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Missing or invalid Authorization header" });
+    }
+
+    const jwt = authHeader.split(" ")[1];
+    const users = getUserUsers(jwt);
+
+    const user = await users.get();
+    return res.json({ user });
+  } catch (err) {
+    console.error("Error fetching user:", err);
+    return res.status(500).json({ error: err.message });
+  }
+}
 
 async function initUserProfile(req, res) {
   try {
@@ -28,7 +48,7 @@ async function initUserProfile(req, res) {
         .jpeg({ quality: 70 })
         .toBuffer();
 
-      const uploaded = await storage.createFile(
+      const uploaded = await getUserStorage.createFile(
         process.env.APPWRITE_BUCKET_ID,
         ID.unique(),
         compressedImageBuffer,
@@ -126,4 +146,5 @@ module.exports = {
   initUserProfile,
   deleteUserAccount,
   updateUserProfile,
+  getAuthenticatedUser
 };

@@ -1,119 +1,138 @@
-import { useEffect, useState } from "react";
-import useNearbyProducts from "../../hooks/useNearbyProducts";
-import ProductCard from "../../components/product/ProductCard";
-import Loader from "../../components/Loader";
-import EmptyState from "../../components/EmptyState";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import axios from "axios";
+
 import PageHelmet from "../../components/PageHelmet";
+import FilterSidebar from "../../components/product/FilterSidebar";
+import ProductCard from "../../components/product/ProductCard";
+import SearchInput from "../../components/product/SearchInput";
+import Loader from "../../components/Loader";
+import SortDropdown from "../../components/product/SortDropDown";
+
+import emptyMascot from "../../assets/swapzy_mascot.png"; // 🧸 Add your image in /assets
 
 const HomeFeed = () => {
-  const [location, setLocation] = useState(null);
+  const [products, setProducts] = useState([]);
   const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const [searchParams] = useSearchParams();
+  const bottomRef = useRef(null);
+
+  // ✅ Reset scroll to top on filter/search/sort change
+  const previousSearch = useRef(searchParams.toString());
 
   useEffect(() => {
-    const college = localStorage.getItem("college");
-    const city = localStorage.getItem("city");
-    const state = localStorage.getItem("state");
-    const lng = localStorage.getItem("lng");
-    const lat = localStorage.getItem("lat");
-
-    if (college && city && state && lng && lat) {
-      setLocation({
-        college,
-        city,
-        state,
-        lng: parseFloat(lng),
-        lat: parseFloat(lat),
-      });
-    } else {
-      navigator.geolocation?.getCurrentPosition(
-        (pos) => {
-          setLocation({
-            college: "",
-            city: "",
-            state: "",
-            lng: pos.coords.longitude,
-            lat: pos.coords.latitude,
-          });
-        },
-        () => {
-          setLocation("denied"); // 📌 special marker for denied location
-        }
-      );
+    const current = searchParams.toString();
+    if (current !== previousSearch.current) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      previousSearch.current = current;
     }
-  }, []);
+  }, [searchParams]);
 
-  const { products, total, loading, error } = useNearbyProducts(
-    location ? { location, page } : { location: null, page }
-  );
+  // Handles updates from SortDropdown when "Nearest" is selected
+  const handleNearbyData = (nearbyProducts) => {
+    setProducts(nearbyProducts);
+    setHasMore(false); // Disable infinite scroll for nearest
+  };
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get("/api/products/all", {
+        params: {
+          page,
+          limit: 12,
+          ...Object.fromEntries(searchParams.entries()),
+        },
+      });
+
+      const newProducts = res.data.products || [];
+
+      setProducts((prev) =>
+        page === 1 ? newProducts : [...prev, ...newProducts]
+      );
+      setHasMore(newProducts.length > 0);
+    } catch (err) {
+      console.error("❌ Fetch error", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchParams]);
+
+  // Reset to page 1 on filter/search/sort change
+  useEffect(() => {
+    setPage(1);
+  }, [searchParams]);
+
+  // Trigger product fetch
+  useEffect(() => {
+    if (searchParams.get("sort") !== "nearest") {
+      fetchProducts();
+    }
+  }, [page, fetchProducts, searchParams]);
+
+  // Infinite scroll setup
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { rootMargin: "100px" } // ✅ preload earlier
+    );
+
+    if (bottomRef.current) observer.observe(bottomRef.current);
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      if (bottomRef.current) observer.unobserve(bottomRef.current);
+    };
+  }, [loading, hasMore]);
 
   return (
-    <main className="p-4">
+    <>
       <PageHelmet
-        title="Nearby Products"
-        description="Discover products near your college or city with SwapZY's hyperlocal marketplace."
+        title="Buy & Sell Campus Essentials"
+        description="Find second-hand books, gadgets, furniture & more from your college. Filter by price, condition, and category easily!"
       />
 
-      <h1 className="text-2xl font-bold mb-4">Products Near You</h1>
+      <div className="container mx-auto px-4 py-6">
+        <SearchInput />
+        <SortDropdown onData={handleNearbyData} />
 
-      {loading ? (
-        <Loader />
-      ) : error ? (
-        <div className="text-red-500">{error}</div>
-      ) : location === null ? (
-        <EmptyState
-          title="Detecting Your Location..."
-          subtitle="Please allow location access to show products near you."
-          showMascot={true}
-        />
-      ) : location === "denied" ? (
-        <EmptyState
-          title="Location Access Denied"
-          subtitle="We couldn't detect your location. Please enable location services and refresh the page."
-          ctaText="How to Enable"
-          ctaLink="/help/location-access"
-          showMascot={true}
-        />
-      ) : products.length === 0 ? (
-        <EmptyState
-          title="No Nearby Products"
-          subtitle="Looks like there are no listings near your location yet. Try checking back later or explore other categories!"
-          ctaText="Explore Categories"
-          ctaLink="/products"
-          showMascot={true}
-        />
-      ) : (
-        <section
-          className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          aria-label="Nearby products grid"
-        >
-          {products.map((p) => (
-            <ProductCard key={p._id} product={p} />
-          ))}
-        </section>
-      )}
+        <div className="flex flex-col md:flex-row gap-4">
+          <FilterSidebar/>
 
-      {total > 30 && (
-        <nav
-          className="mt-4 flex justify-center"
-          aria-label="Pagination navigation"
-        >
-          <button
-            onClick={() => setPage((p) => Math.max(p - 1, 1))}
-            disabled={page === 1}
-            className="px-3 py-1 border rounded mr-2"
-          >
-            Prev
-          </button>
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            disabled={products.length < 30}
-            className="px-3 py-1 border rounded"
-          >
-            Next
-          </button>
-        </nav>
-      )}
-    </main>
+          <section className="flex-1">
+            {products.length === 0 && !loading ? (
+              <div className="flex flex-col items-center mt-16">
+                <img
+                  src={emptyMascot}
+                  alt="No products found"
+                  className="w-48 h-48 opacity-80 mb-4"
+                />
+                <p className="text-center text-gray-500 text-lg">
+                  Oops! No products match your filters 😔
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                  <ProductCard key={product._id} product={product} />
+                ))}
+              </div>
+            )}
+
+            {/* Loader / Infinite Scroll Trigger */}
+            <div ref={bottomRef} className="mt-8">
+              {loading && <Loader />}
+            </div>
+          </section>
+        </div>
+      </div>
+    </>
   );
 };
 

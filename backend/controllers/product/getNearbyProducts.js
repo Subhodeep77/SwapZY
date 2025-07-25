@@ -3,9 +3,25 @@ const Wishlist = require("../../models/Wishlist");
 
 const getNearbyProducts = async (req, res) => {
   try {
-    const { lng, lat, college, city, district, state, page = 1, limit = 30 } = req.query;
+    const {
+      lng,
+      lat,
+      college,
+      city,
+      district,
+      state,
+      page = 1,
+      limit = 30,
+      sort = "latest",
+      minPrice,
+      maxPrice,
+      category,
+      condition,
+    } = req.query;
+
     const currentUserId = req.user?.appwriteId;
 
+    // Validate required fields
     if (!lng || !lat || !college || !city || !state) {
       return res.status(400).json({ error: "Missing required location fields." });
     }
@@ -21,6 +37,21 @@ const getNearbyProducts = async (req, res) => {
       coordinates: [longitude, latitude],
     };
 
+    // Dynamic sort mapping
+    let sortOption = { createdAt: -1 }; // default
+    if (sort === "priceLowToHigh") sortOption = { price: 1 };
+    else if (sort === "priceHighToLow") sortOption = { price: -1 };
+
+    // Base filter shared by all levels
+    const baseFilter = { status: "available" };
+    if (category) baseFilter.category = category;
+    if (condition) baseFilter.condition = condition;
+    if (minPrice || maxPrice) {
+      baseFilter.price = {};
+      if (minPrice) baseFilter.price.$gte = parseFloat(minPrice);
+      if (maxPrice) baseFilter.price.$lte = parseFloat(maxPrice);
+    }
+
     const searchLevels = [
       { filter: { college }, maxDistance: 5 * 1000 },
       { filter: { city }, maxDistance: 15 * 1000 },
@@ -29,9 +60,14 @@ const getNearbyProducts = async (req, res) => {
       { filter: {}, maxDistance: 100 * 1000 },
     ].filter(Boolean);
 
-    let allResults = new Map(); // To merge without duplicates
+    let allResults = new Map();
 
     for (const level of searchLevels) {
+      const queryFilter = {
+        ...baseFilter,
+        ...level.filter,
+      };
+
       const results = await Product.aggregate([
         {
           $geoNear: {
@@ -39,13 +75,10 @@ const getNearbyProducts = async (req, res) => {
             distanceField: "distance",
             maxDistance: level.maxDistance,
             spherical: true,
-            query: {
-              status: "available",
-              ...level.filter,
-            },
+            query: queryFilter,
           },
         },
-        { $sort: { createdAt: -1 } },
+        { $sort: sortOption },
       ]);
 
       for (const product of results) {
@@ -62,10 +95,13 @@ const getNearbyProducts = async (req, res) => {
     const start = (parseInt(page) - 1) * parseInt(limit);
     const paginated = mergedResults.slice(start, start + parseInt(limit));
 
+    // Wishlist enrichment
     const productIds = paginated.map((p) => p._id);
     const wishlistEntries = await Wishlist.find({
       productId: { $in: productIds },
-    }).select("productId userId");
+    })
+      .select("productId userId")
+      .lean();
 
     const wishlistCountMap = {};
     const wishlistedIds = new Set();
@@ -78,13 +114,16 @@ const getNearbyProducts = async (req, res) => {
       }
     });
 
-    const enriched = paginated.map((product) => ({
-      ...product,
-      isMine: currentUserId === product.ownerId,
-      isWishlisted: wishlistedIds.has(product._id.toString()),
-      wishlistCount: wishlistCountMap[product._id.toString()] || 0,
-      images: product.images || [],
-    }));
+    const enriched = paginated.map((product) => {
+      const plain = product.toObject ? product.toObject() : product;
+      return {
+        ...plain,
+        isMine: currentUserId === plain.ownerId,
+        isWishlisted: wishlistedIds.has(plain._id.toString()),
+        wishlistCount: wishlistCountMap[plain._id.toString()] || 0,
+        images: plain.images || [],
+      };
+    });
 
     res.status(200).json({
       data: enriched,

@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import authService from "../appwrite/authService";
+import authService from "../services/authService";
 import { motion } from "framer-motion";
 import { FcGoogle } from "react-icons/fc";
 import PageHelmet from "../components/PageHelmet";

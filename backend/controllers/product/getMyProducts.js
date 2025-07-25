@@ -8,12 +8,7 @@ async function getMyProducts(req, res) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const {
-      page = 1,
-      limit = 10,
-      sort,
-      status = "available",
-    } = req.query;
+    const { page = 1, limit = 10, sort, status = "available" } = req.query;
 
     const safePage = Math.max(1, parseInt(page));
     const safeLimit = Math.max(1, parseInt(limit));
@@ -24,8 +19,12 @@ async function getMyProducts(req, res) {
     }
 
     const validSorts = ["latest", "price_low", "price_high"];
+     if (sort && !validSorts.includes(sort)) {
+      return res.status(400).json({ error: "Invalid sort option" });
+    }
     let sortOption = { createdAt: -1 };
-    if (sort === "price_low") sortOption = { price: 1 };
+    if (sort === "latest") sortOption = { createdAt: -1 };
+    else if (sort === "price_low") sortOption = { price: 1 };
     else if (sort === "price_high") sortOption = { price: -1 };
 
     const skip = (safePage - 1) * safeLimit;
@@ -36,10 +35,10 @@ async function getMyProducts(req, res) {
     ]);
 
     // 📊 Get wishlist counts for all product IDs
-    const productIds = products.map(p => p._id);
+    const productIds = products.map((p) => p._id);
     const wishlistCounts = await Wishlist.aggregate([
       { $match: { productId: { $in: productIds } } },
-      { $group: { _id: "$productId", count: { $sum: 1 } } }
+      { $group: { _id: "$productId", count: { $sum: 1 } } },
     ]);
     const countMap = wishlistCounts.reduce((acc, item) => {
       acc[item._id.toString()] = item.count;
@@ -59,7 +58,8 @@ async function getMyProducts(req, res) {
       page: safePage,
       limit: safeLimit,
       totalPages: Math.ceil(total / safeLimit),
-      message: products.length === 0 ? "You have no products listed." : undefined,
+      message:
+        products.length === 0 ? "You have no products listed." : undefined,
     });
   } catch (err) {
     console.error("Get my products error:", err);

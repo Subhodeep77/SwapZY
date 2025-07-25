@@ -5,15 +5,18 @@ import App from "./App";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/auth.context"; // 👈 import your AuthProvider
+import { CategoryProvider } from "./context/category.context";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <HelmetProvider>
-      <AuthProvider> {/* ✅ wrap App and other providers */}
-        <ThemeProvider>
-          <App />
-        </ThemeProvider>
-      </AuthProvider>
+      <CategoryProvider>
+        <AuthProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AuthProvider>
+      </CategoryProvider>
     </HelmetProvider>
   </React.StrictMode>
 );

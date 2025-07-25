@@ -1,18 +1,22 @@
 const Product = require("../../models/Product");
-const { storage, ID } = require("../../config/appwrite");
 const sharp = require("sharp");
 const upload = require("../../utils/multerConfig");
 const mongoose = require("mongoose");
+const { getUserServices } = require("../../config/appwrite");
 
 const updateProductWithImages = async (req, res) => {
   const productId = req.params.id;
   const ownerId = req.user.appwriteId;
+  const jwt = req.user.jwt; // ⬅️ ensure JWT is stored in middleware (like verifyAppwriteToken)
 
   if (!mongoose.Types.ObjectId.isValid(productId)) {
     return res.status(400).json({ error: "Invalid product ID format." });
   }
 
   try {
+    // ⬅️ Get user-scoped Appwrite services
+    const { storage, ID } = getUserServices(jwt);
+
     const product = await Product.findById(productId);
     if (!product) return res.status(404).json({ error: "Product not found" });
     if (product.ownerId !== ownerId)

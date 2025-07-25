@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import authService from "../services/authService";
 import axios from "axios";
 import Loader from "../components/Loader";
+import { motion } from "framer-motion";
+const MotionDiv = motion.div;
 
 const UserProfileForm = () => {
   const [formData, setFormData] = useState({
@@ -42,6 +44,11 @@ const UserProfileForm = () => {
     setLoading(true);
     try {
       const token = await authService.getJWT();
+      if (!token) {
+        alert("Session expired. Please log in again.");
+        setLoading(false);
+        return;
+      }
       const data = new FormData();
       data.append("name", formData.name);
       data.append("bio", formData.bio);
@@ -49,7 +56,7 @@ const UserProfileForm = () => {
       data.append("contact", formData.contact);
       if (formData.avatar) data.append("avatar", formData.avatar);
 
-      await axios.post("/api/users/init", data, {
+      await axios.post("/api/user/init", data, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -65,7 +72,7 @@ const UserProfileForm = () => {
   };
 
   return (
-    <motion.div
+    <MotionDiv
       className="min-h-screen flex items-center justify-center"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -159,7 +166,7 @@ const UserProfileForm = () => {
           {loading ? <Loader /> : "Save Profile"}
         </button>
       </form>
-    </motion.div>
+    </MotionDiv>
   );
 };
 

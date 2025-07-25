@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import authService from "../appwrite/authService";
+import authService from "../services/authService";
 import axios from "axios";
 import Loader from "../components/Loader";
 import ProfileCard from "../components/ProfileCard";

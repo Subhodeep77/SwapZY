@@ -1,11 +1,17 @@
 const Product = require("../../models/Product");
-const { storage, client } = require("../../config/appwrite");
+const { getUserServices } = require("../../config/appwrite");
 
 const deleteProductWithImages = async (req, res) => {
   const productId = req.params.id;
   const ownerId = req.user.appwriteId;
+  const jwt = req.headers.authorization?.split(" ")[1];
+
+  if (!jwt) {
+    return res.status(401).json({ error: "Missing JWT token" });
+  }
 
   try {
+    const { storage } = getUserServices(jwt);
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ error: "Product not found" });

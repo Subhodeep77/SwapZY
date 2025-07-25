@@ -4,8 +4,8 @@ import Login from "../pages/Login";
 import Dashboard from "../pages/Dashboard";
 import UserProfileForm from "../components/UserProfileForm";
 import AuthGate from "../components/AuthGate";
-import AdminDashboard from "../pages/admin/AdminDashboard";
-import ProductViewLogsPage from "../pages/admin/ProductViewLogsPage";
+import AdminDashboard from "../pages/admin/Dashboard";
+import ProductViewLogsPage from "../pages/admin/ProductViewLogs";
 import AdminNotifications from "../pages/admin/Notifications";
 import AuditLogs from "../pages/admin/AuditLog";
 import AdminActions from "../pages/admin/AdminAction";
@@ -13,11 +13,13 @@ import AdminUserActivityLogsPage from "../pages/admin/UserActivityLogs";
 import AdminUserManagementPage from "../pages/admin/UserManagement";
 import AdminLoginLogs from "../pages/admin/AdminLoginLogs";
 import HomeFeed from "../pages/product/HomeFeed"
+import NotFound from "../components/404";
 
 const AppRoutes = () => {
   return (
     <Router>
       <Routes>
+        <Route path="*" element={<NotFound/>} />
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/profile/init" element={<UserProfileForm />} />

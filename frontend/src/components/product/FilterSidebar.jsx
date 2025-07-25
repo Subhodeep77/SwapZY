@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useCategories } from "../../context/category.context"; // Using context
 
-const categories = ["Electronics", "Books", "Clothing", "Stationery", "Sports"];
 const conditions = ["new", "like-new", "used"];
 const sortOptions = [
   { label: "Latest", value: "latest" },
@@ -18,18 +18,25 @@ const FilterSidebar = () => {
   const [condition, setCondition] = useState(searchParams.get("condition") || "");
   const [sort, setSort] = useState(searchParams.get("sort") || "latest");
 
-  // Update URL params when any filter changes
+  const { categories, loading } = useCategories();
+
+  // Sync filters with URL and trigger product fetch
   useEffect(() => {
-    const params = {};
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams(searchParams);
 
-    if (category) params.category = category;
-    if (minPrice) params.minPrice = minPrice;
-    if (maxPrice) params.maxPrice = maxPrice;
-    if (condition) params.condition = condition;
-    if (sort) params.sort = sort;
+      category ? params.set("category", category) : params.delete("category");
+      minPrice ? params.set("minPrice", minPrice) : params.delete("minPrice");
+      maxPrice ? params.set("maxPrice", maxPrice) : params.delete("maxPrice");
+      condition ? params.set("condition", condition) : params.delete("condition");
+      sort !== "latest" ? params.set("sort", sort) : params.delete("sort");
 
-    setSearchParams(params);
-  }, [category, minPrice, maxPrice, condition, sort]);
+      params.set("page", "1");
+      setSearchParams(params);
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [category, minPrice, maxPrice, condition, sort, searchParams, setSearchParams]);
 
   const clearFilters = () => {
     setCategory("");
@@ -44,22 +51,24 @@ const FilterSidebar = () => {
     <div className="w-full md:w-64 p-4 bg-white border rounded-xl shadow-sm">
       <h2 className="text-lg font-semibold mb-4">Filters</h2>
 
+      {/* Category */}
       <div className="mb-4">
         <label className="block font-medium mb-1">Category</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           className="w-full p-2 border rounded"
+          disabled={loading}
         >
           <option value="">All</option>
           {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
+            <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>
+        {loading && <p className="text-sm text-gray-500 mt-1">Loading categories...</p>}
       </div>
 
+      {/* Price */}
       <div className="mb-4">
         <label className="block font-medium mb-1">Price Range (₹)</label>
         <div className="flex gap-2">
@@ -80,6 +89,7 @@ const FilterSidebar = () => {
         </div>
       </div>
 
+      {/* Condition */}
       <div className="mb-4">
         <label className="block font-medium mb-1">Condition</label>
         <select
@@ -96,6 +106,7 @@ const FilterSidebar = () => {
         </select>
       </div>
 
+      {/* Sort */}
       <div className="mb-4">
         <label className="block font-medium mb-1">Sort By</label>
         <select
@@ -104,9 +115,7 @@ const FilterSidebar = () => {
           className="w-full p-2 border rounded"
         >
           {sortOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
       </div>

@@ -1,5 +1,5 @@
 const sharp = require("sharp");
-const { storage, ID } = require("../../config/appwrite");
+const { getUserServices } = require("../../config/appwrite");
 const Product = require("../../models/Product");
 const upload = require("../../utils/multerConfig");
 
@@ -21,6 +21,14 @@ const createProductWithImages = async (req, res) => {
     } = req.body;
 
     const ownerId = req.user.appwriteId;
+    const jwt = req.headers.authorization?.split(" ")[1];
+
+    if (!jwt) {
+      return res.status(401).json({ error: "Missing JWT token" });
+    }
+
+    const { storage, ID } = getUserServices(jwt);
+
 
     if (!title || !price || !college || !city || !lng || !lat) {
       return res.status(400).json({

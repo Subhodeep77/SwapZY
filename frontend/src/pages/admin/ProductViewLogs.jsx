@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
-import Loader from "../../../components/Loader";
-import PageHelmet from "../../../components/PageHelmet";
-import ProductViewDetails from "../../../components/admin/ProductViewDetails";
+import Loader from "../../components/Loader";
+import PageHelmet from "../../components/PageHelmet";
+import ProductViewDetails from "../../components/admin/ProductViewDetails";
 
 const ProductViewsPage = () => {
   const { productId } = useParams();

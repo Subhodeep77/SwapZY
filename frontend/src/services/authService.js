@@ -1,5 +1,5 @@
 // src/appwrite/authService.js
-import { account } from "./config";
+import { account } from "../config/appwrite";
 
 class AuthService {
   async loginWithGoogle() {
