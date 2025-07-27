@@ -1,9 +1,14 @@
 // middlewares/optionalAppwriteToken.js
 const sdk = require("node-appwrite");
+require("dotenv").config();
 
 const optionalAppwriteToken = async (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return next(); // Guest mode
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return next(); // Guest mode
+  }
+
+  const token = authHeader.split(" ")[1];
 
   const client = new sdk.Client()
     .setEndpoint(process.env.APPWRITE_ENDPOINT)

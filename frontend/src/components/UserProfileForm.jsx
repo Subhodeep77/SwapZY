@@ -11,7 +11,6 @@ const UserProfileForm = () => {
     bio: "",
     college: "",
     contact: "",
-    avatar: null,
   });
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -30,17 +29,17 @@ const UserProfileForm = () => {
   }, []);
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === "avatar") {
-      setFormData((prev) => ({ ...prev, avatar: files[0] }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!currentUser) return;
+    if (!currentUser) {
+      console.warn("⛔ No currentUser found. Aborting...");
+      return;
+    }
+
     setLoading(true);
     try {
       const token = await authService.getJWT();
@@ -49,22 +48,32 @@ const UserProfileForm = () => {
         setLoading(false);
         return;
       }
-      const data = new FormData();
-      data.append("name", formData.name);
-      data.append("bio", formData.bio);
-      data.append("college", formData.college);
-      data.append("contact", formData.contact);
-      if (formData.avatar) data.append("avatar", formData.avatar);
 
-      await axios.post("/api/user/init", data, {
+      const payload = {
+        name: formData.name,
+        bio: formData.bio,
+        college: formData.college,
+        contact: formData.contact,
+      };
+
+      const res = await axios.post("/api/user/init", payload, {
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
+      console.log("✅ Profile created:", res.data);
       alert("Profile created successfully");
     } catch (err) {
-      console.error("Error creating profile:", err);
+      console.error("🔥 Error creating profile:", err);
+      if (err.response) {
+        console.error(
+          "🛑 Backend Response:",
+          err.response.status,
+          err.response.data
+        );
+      }
       alert("Failed to create profile");
     } finally {
       setLoading(false);
@@ -145,19 +154,6 @@ const UserProfileForm = () => {
           />
         </div>
 
-        <div>
-          <label htmlFor="avatar" className="block mb-1 font-medium">
-            Avatar
-          </label>
-          <input
-            id="avatar"
-            type="file"
-            name="avatar"
-            accept="image/*"
-            onChange={handleChange}
-            className="w-full border rounded p-2"
-          />
-        </div>
         <button
           type="submit"
           disabled={loading}

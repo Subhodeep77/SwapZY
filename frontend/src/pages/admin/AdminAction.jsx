@@ -3,6 +3,7 @@ import axios from "axios";
 import { formatDistanceToNow, isAfter, isBefore } from "date-fns";
 import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
+import authService from "../../services/authService";
 
 const AdminActions = () => {
   const [actions, setActions] = useState([]);
@@ -29,7 +30,11 @@ const AdminActions = () => {
   const fetchActions = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`/api/admin/admin-actions?page=${page}&limit=${limit}`);
+      const jwt = await authService.getJWT();
+      const { data } = await axios.get(
+        `/api/admin/admin-actions?page=${page}&limit=${limit}`,
+        { headers: { Authorization: `Bearer ${jwt}` } }
+      );
       setActions(data.actions || []);
     } catch (error) {
       console.error("Error fetching admin actions:", error);
@@ -40,7 +45,10 @@ const AdminActions = () => {
 
   const fetchAdminMap = useCallback(async () => {
     try {
-      const res = await axios.get(`/api/admin/admins/map`); // cache-busting param
+      const jwt = await authService.getJWT(); // ✅ Get JWT
+      const res = await axios.get(`/api/admin/admins/map`, {
+        headers: { Authorization: `Bearer ${jwt}` }, // ✅ Set Auth header
+      });
       if (res.data.success) {
         setAdminMap(res.data.adminMap || {});
         setAdminMapError(false);
@@ -74,7 +82,10 @@ const AdminActions = () => {
   const handleNewActionSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("/api/admin/admin-actions/create", newAction);
+      const jwt = await authService.getJWT();
+      await axios.post("/api/admin/admin-actions/create", newAction, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
       setShowForm(false);
       setNewAction({
         adminAppwriteId: "",

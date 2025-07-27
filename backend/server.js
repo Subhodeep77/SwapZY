@@ -36,8 +36,12 @@ const app = express();
 const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
-  cors: { origin: process.env.CLIENT_URL },
+  cors: {
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  },
 });
+
 
 app.set("io", io);
 registerOrderExpiryCron(io);
@@ -46,7 +50,10 @@ registerAutoCompleteCron(io);
 
 // 🔐 Middleware
 app.use(globalLimiter);
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL,
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 

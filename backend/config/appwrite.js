@@ -1,27 +1,15 @@
-const { Client, Databases, Storage, Users, ID, Query } = require("node-appwrite");
-require("dotenv").config();
+const sdk = require("node-appwrite");
 
-function getUserClient(jwt) {
-  return new Client()
+function getUserServices(jwt) {
+  const client = new sdk.Client()
     .setEndpoint(process.env.APPWRITE_ENDPOINT)
     .setProject(process.env.APPWRITE_PROJECT_ID)
     .setJWT(jwt);
-}
-
-function getUserServices(jwt) {
-  const client = getUserClient(jwt);
 
   return {
-    client,
-    users: new Users(client),
-    databases: new Databases(client),
-    storage: new Storage(client),
-    ID,
-    Query,
+    account: new sdk.Account(client),
+    ID: sdk.ID,
   };
 }
 
-module.exports = {
-  getUserClient,
-  getUserServices,
-};
+module.exports = { getUserServices };

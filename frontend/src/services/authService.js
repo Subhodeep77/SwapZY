@@ -38,6 +38,7 @@ class AuthService {
   async getJWT() {
     try {
       const session = await account.createJWT();
+      console.log(session.jwt);
       return session.jwt;
     } catch (error) {
       console.error("Failed to get JWT:", error);
