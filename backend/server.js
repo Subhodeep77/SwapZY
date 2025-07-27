@@ -40,6 +40,9 @@ const io = new Server(httpServer, {
     origin: process.env.CLIENT_URL,
     credentials: true,
   },
+  pingTimeout: 60000,     
+  pingInterval: 25000,   
+  allowEIO3: true
 });
 
 
@@ -98,7 +101,7 @@ connectDB()
     io.on("connection", (socket) => {
       console.log("🟢 User connected:", socket.id);
 
-      // JOIN_CHAT with validation and user tracking
+      //JOIN_CHAT with validation and user tracking
       socket.on("JOIN_CHAT", async ({ chatId, userId }) => {
         try {
           await validateChatAccess(chatId, userId);

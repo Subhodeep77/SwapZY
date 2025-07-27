@@ -12,14 +12,16 @@ import AdminActions from "../pages/admin/AdminAction";
 import AdminUserActivityLogsPage from "../pages/admin/UserActivityLogs";
 import AdminUserManagementPage from "../pages/admin/UserManagement";
 import AdminLoginLogs from "../pages/admin/AdminLoginLogs";
-import HomeFeed from "../pages/product/HomeFeed"
+import HomeFeed from "../pages/product/HomeFeed";
 import NotFound from "../components/404";
+import TestApi from "../pages/TestApi";
+import TestSocket from "../pages/TestSocket";
 
 const AppRoutes = () => {
   return (
     <Router>
       <Routes>
-        <Route path="*" element={<NotFound/>} />
+        <Route path="*" element={<NotFound />} />
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/profile/init" element={<UserProfileForm />} />
@@ -91,11 +93,13 @@ const AppRoutes = () => {
           path="/admin/admin-login-log"
           element={
             <AuthGate roles={["ADMIN"]}>
-              <AdminLoginLogs/>
+              <AdminLoginLogs />
             </AuthGate>
           }
         />
-        <Route path="/products" element={<HomeFeed/>} />
+        <Route path="/products" element={<HomeFeed />} />
+        <Route path="/test-api" element={<TestApi />} />
+        <Route path="/test-socket" element={<TestSocket />} />
       </Routes>
     </Router>
   );

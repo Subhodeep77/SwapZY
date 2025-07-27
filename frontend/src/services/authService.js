@@ -1,4 +1,3 @@
-// src/appwrite/authService.js
 import { account } from "../config/appwrite";
 
 class AuthService {
@@ -27,18 +26,16 @@ class AuthService {
   async logout() {
     try {
       await account.deleteSession("current");
+      console.log("🧹 Logged out successfully");
     } catch (error) {
       console.error("Logout failed:", error);
     }
   }
 
-  /**
-   * Gets the JWT for secure backend API calls.
-   */
   async getJWT() {
     try {
       const session = await account.createJWT();
-      console.log(session.jwt);
+      console.log("🔐 JWT:", session.jwt);
       return session.jwt;
     } catch (error) {
       console.error("Failed to get JWT:", error);
