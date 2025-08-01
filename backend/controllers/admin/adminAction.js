@@ -1,5 +1,5 @@
 // controllers/admin/adminAction.js
-const { AdminAction } = require("../../models/admin");
+const { AdminAction } = require("../../models/Admin");
 
 // 🧠 GET: Fetch recent admin actions with filters & pagination
 const getRecentAdminActions = async (req, res) => {

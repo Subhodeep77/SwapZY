@@ -1,5 +1,5 @@
 // controllers/admin/auditLog.js
-const { AuditLog, Notification } = require("../../models/admin");
+const { AuditLog, Notification } = require("../../models/Admin");
 
 const getAllAuditLogs = async (req, res) => {
   try {

@@ -1,7 +1,7 @@
 // routes/admin/notifications.js
 const express = require("express");
 const router = express.Router();
-const { Notification } = require("../../models/admin");
+const { Notification } = require("../../models/Admin");
 const isAdmin = require("../../middlewares/isAdmin");
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 

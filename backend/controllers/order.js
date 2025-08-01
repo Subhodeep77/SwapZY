@@ -8,7 +8,7 @@ const path = require("path");
 const archiver = require("archiver");
 const { emitToRoomIfExists } = require("../utils/socketHelper");
 const Razorpay = require("razorpay");
-const { AdminAction } = require("../models/admin"); 
+const { AdminAction } = require("../models/Admin"); 
 const cron = require("node-cron");
 let CRON_ENABLED = true; // 🆕 Toggle flag
 

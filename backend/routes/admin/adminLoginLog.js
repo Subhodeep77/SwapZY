@@ -4,7 +4,7 @@ const router = express.Router();
 
 const { createAdminAction } = require("../../controllers/admin/adminAction");
 const { getAdminMap } = require("../../controllers/admin/admins");
-const { AdminAction } = require("../../models/admin");
+const { AdminAction } = require("../../models/Admin");
 
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
 const isAdmin = require("../../middlewares/isAdmin");

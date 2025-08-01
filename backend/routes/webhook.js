@@ -1,7 +1,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const { Order } = require("../models/Order");
-const { AdminAction } = require("../models/admin");
+const { AdminAction } = require("../models/Admin");
 
 const router = express.Router();
 

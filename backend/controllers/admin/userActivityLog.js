@@ -1,5 +1,5 @@
 // controllers/admin/userActivity.js
-const { UserActivityLog } = require("../../models/admin");
+const { UserActivityLog } = require("../../models/Admin");
 
 const getRecentUserActivities = async (req, res) => {
   try {

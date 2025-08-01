@@ -1,6 +1,6 @@
 // controllers/admin/dashboardStats.js
 const cron = require("node-cron");
-const AdminDashboardStat = require("../../models/admin").AdminDashboardStat;
+const AdminDashboardStat = require("../../models/Admin").AdminDashboardStat;
 const Product = require("../../models/Product");
 const { users } = require("../../config/appwrite");
 

@@ -1,4 +1,4 @@
-const { ProductView } = require("../../models/admin");
+const { ProductView } = require("../../models/Admin");
 
 // ⏱️ Rate limit threshold (in milliseconds)
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
