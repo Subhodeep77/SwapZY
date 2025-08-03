@@ -1,244 +1,161 @@
-const sdk = require("node-appwrite");
-const { getAvatarPreviewUrl } = require("../utils/getPreviewUrl");
-const { getUserServices } = require("../config/appwrite");
+const User = require("../models/User");
+const { getGravatarUrl } = require("../utils/avatar");
+const cloudinary = require("../config/cloudinary");
 
-const createUser = async (
-  jwt,
-  { appwriteId, name, email, avatar = "", bio = "", college = "", contact = "" }
-) => {
-  const { databases, ID, Permission, Role } = getUserServices(jwt);
-
-  const timestamp = new Date().toISOString();
-  const data = {
-    appwriteId,
-    name,
-    email,
-    avatar,
-    bio,
-    college,
-    contact,
-    isDeleted: false,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-
-  const permissions = [
-    Permission.read(Role.user(appwriteId)),
-    Permission.update(Role.user(appwriteId)),
-    Permission.delete(Role.user(appwriteId)),
-  ];
-
-  const doc = await databases.createDocument(
-    process.env.APPWRITE_DATABASE_ID,
-    process.env.APPWRITE_USERS_COLLECTION_ID,
-    ID.unique(),
-    data,
-    permissions
-  );
-
-  return { ...doc, id: doc.$id };
-};
-
-const getUserByAppwriteId = async (jwt, appwriteId) => {
-  const { databases, Query } = getUserServices(jwt);
-  console.log("📁 DB ID:", process.env.APPWRITE_DATABASE_ID);
-  console.log("📂 USERS COLLECTION ID:", process.env.APPWRITE_USERS_COLLECTION_ID);
-
+/**
+ * @desc   Create a new user profile
+ * @route  POST /api/users/init
+ */
+const initUser = async (req, res) => {
   try {
-    const response = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      [Query.equal("appwriteId", appwriteId)]
-    );
+    const { appwriteId, name, email, avatar = "", bio = "", college = "", contact = "" } = req.body;
 
-    const user = response.documents[0];
-    if (!user) return null;
-
-    if (user?.isDeleted === true) {
-      throw new Error("This user has been banned by an admin.");
+    if (!appwriteId || !email) {
+      return res.status(400).json({ message: "Missing appwriteId or email" });
     }
 
-    user.avatarUrl = user.avatar ? getAvatarPreviewUrl(user.avatar) : null;
-    return user;
-  } catch (error) {
-    console.error("❌ Appwrite fetch failed:", error); // helpful debug
-    throw new Error("Failed to fetch user from Appwrite DB: " + error.message);
-  }
-};
-
-const getAllUsersFromDatabase = async (
-  jwt,
-  { limit = 100, offset = 0, role, isDeleted = false, college, search } = {}
-) => {
-  const { databases, Query } = getUserServices(jwt);
-
-  try {
-    const filters = [Query.equal("isDeleted", isDeleted)];
-
-    if (role) filters.push(Query.equal("role", role));
-    if (college) filters.push(Query.equal("college", college));
-    if (search) {
-      filters.push(
-        Query.or([Query.search("name", search), Query.search("email", search)])
-      );
+    const existingUser = await User.findOne({ appwriteId });
+    if (existingUser) {
+      return res.status(200).json({ user: existingUser, message: "User already exists" });
     }
 
-    const response = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      [
-        ...filters,
-        Query.limit(limit),
-        Query.offset(offset),
-        Query.orderDesc("createdAt"),
-      ]
-    );
+    const userAvatar = avatar || getGravatarUrl(email);
 
-    const totalResponse = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      filters
-    );
+    const newUser = new User({
+      appwriteId,
+      name,
+      email,
+      avatar: userAvatar,
+      bio,
+      college,
+      contact,
+    });
 
-    const users = response.documents.map((user) => ({
-      ...user,
-      avatarUrl: user.avatar ? getAvatarPreviewUrl(user.avatar) : null,
-    }));
-
-    const totalCount = totalResponse.total || totalResponse.documents.length;
-
-    return { users, totalCount };
+    await newUser.save();
+    return res.status(201).json({ user: newUser });
   } catch (error) {
-    throw new Error("Failed to fetch users from Appwrite DB: " + error.message);
+    console.error("Init user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const updateUser = async (jwt, appwriteId, updates = {}) => {
-  const { databases, Query } = getUserServices(jwt);
-
+/**
+ * @desc   Update user profile
+ * @route  PUT /api/users/user/update
+ */
+const updateUser = async (req, res) => {
   try {
-    const response = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      [Query.equal("appwriteId", appwriteId)]
-    );
+    const { appwriteId, name, bio, college, contact } = req.body;
+    if (!appwriteId) return res.status(400).json({ message: "Missing appwriteId" });
 
-    const user = response.documents[0];
-    if (!user) throw new Error("User not found");
-    if (user.isDeleted) throw new Error("Cannot update banned user.");
+    const user = await User.findOne({ appwriteId });
+    if (!user || user.isDeleted) return res.status(404).json({ message: "User not found" });
 
-    if (updates.role && !["USER", "ADMIN"].includes(updates.role)) {
-      throw new Error("Invalid role. Allowed roles are 'USER' and 'ADMIN'.");
+    // Update fields
+    if (name !== undefined) user.name = name;
+    if (bio !== undefined) user.bio = bio;
+    if (college !== undefined) user.college = college;
+    if (contact !== undefined) user.contact = contact;
+
+    // Avatar uploaded via multer (Cloudinary)
+    if (req.file?.path) {
+      user.avatar = req.file.path;
     }
 
-    const updatedFields = {
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const updated = await databases.updateDocument(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      user.$id,
-      updatedFields
-    );
-
-    return updated;
+    await user.save();
+    return res.status(200).json({ user });
   } catch (error) {
-    throw new Error("Failed to update user: " + error.message);
+    console.error("Error updating user:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const deleteUser = async (jwt, appwriteId) => {
-  const { databases, Query, users: appwriteUsers } = getUserServices(jwt);
-
+/**
+ * @desc   Get user profile by appwriteId
+ * @route  GET /api/users/:appwriteId
+ */
+const getUserByAppwriteId = async (req, res) => {
   try {
-    const response = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      [Query.equal("appwriteId", appwriteId)]
-    );
+    const { appwriteId } = req.params;
+    const user = await User.findOne({ appwriteId, isDeleted: false });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const user = response.documents[0];
-    if (!user) throw new Error("User not found");
-
-    await appwriteUsers.delete(user.appwriteId);
-
-    await databases.deleteDocument(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      user.$id
-    );
-
-    return true;
+    return res.status(200).json({ user });
   } catch (error) {
-    throw new Error("Failed to delete user: " + error.message);
+    console.error("Get user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const softDeleteUser = async (jwt, appwriteId) => {
-  const { databases, Query } = getUserServices(jwt);
-
+/**
+ * @desc   Soft delete user
+ * @route  DELETE /api/users/:appwriteId
+ */
+const softDeleteUser = async (req, res) => {
   try {
-    const response = await databases.listDocuments(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      [Query.equal("appwriteId", appwriteId)]
+    const { appwriteId } = req.params;
+    const user = await User.findOneAndUpdate(
+      { appwriteId },
+      { isDeleted: true },
+      { new: true }
     );
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const user = response.documents[0];
-    if (!user) throw new Error("User not found");
-    if (user.isDeleted) throw new Error("User is already banned.");
-
-    const updated = await databases.updateDocument(
-      process.env.APPWRITE_DATABASE_ID,
-      process.env.APPWRITE_USERS_COLLECTION_ID,
-      user.$id,
-      {
-        isDeleted: true,
-        updatedAt: new Date().toISOString(),
-      }
-    );
-
-    return updated;
+    return res.status(200).json({ message: "User deleted", user });
   } catch (error) {
-    throw new Error("Failed to soft delete user: " + error.message);
+    console.error("Delete user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const restoreUser = async (jwt, appwriteId) => {
-  const { databases, Query } = getUserServices(jwt);
+/**
+ * @desc   Restore a soft-deleted user
+ * @route  PATCH /api/users/restore/:appwriteId
+ */
+const restoreUser = async (req, res) => {
+  try {
+    const { appwriteId } = req.params;
 
-  const response = await databases.listDocuments(
-    process.env.APPWRITE_DATABASE_ID,
-    process.env.APPWRITE_USERS_COLLECTION_ID,
-    [Query.equal("appwriteId", appwriteId)]
-  );
-
-  const user = response.documents[0];
-  if (!user) throw new Error("User not found");
-  if (!user.isDeleted) throw new Error("User is not banned.");
-
-  console.log("DB ID:", process.env.APPWRITE_DATABASE_ID);
-  console.log("COLLECTION ID:", process.env.APPWRITE_USERS_COLLECTION_ID);
-
-  return await databases.updateDocument(
-    process.env.APPWRITE_DATABASE_ID,
-    process.env.APPWRITE_USERS_COLLECTION_ID,
-    user.$id,
-    {
-      isDeleted: false,
-      updatedAt: new Date().toISOString(),
+    const user = await User.findOne({ appwriteId });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.isDeleted) {
+      return res.status(400).json({ message: "User is not deleted" });
     }
-  );
+
+    user.isDeleted = false;
+    await user.save();
+
+    return res.status(200).json({ message: "User restored successfully", user });
+  } catch (error) {
+    console.error("Restore user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
+
+/**
+ * @desc   Permanently delete a user from the database
+ * @route  DELETE /api/users/hard/:appwriteId
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { appwriteId } = req.params;
+
+    const user = await User.findOneAndDelete({ appwriteId });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.status(200).json({ message: "User permanently deleted", user });
+  } catch (error) {
+    console.error("Hard delete user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 
 module.exports = {
-  createUser,
-  getUserByAppwriteId,
-  getAllUsersFromDatabase,
+  initUser,
   updateUser,
-  deleteUser,
+  getUserByAppwriteId,
   softDeleteUser,
   restoreUser,
+  deleteUser
 };

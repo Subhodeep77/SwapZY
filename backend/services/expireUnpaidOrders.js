@@ -1,5 +1,5 @@
 const { Order, OrderActivityLog } = require("../models/Order");
-const { AdminAction } = require("../models/admin");
+const { AdminAction } = require("../models/Admin");
 const { Product } = require("../models/Product");
 const cron = require("node-cron");
 
