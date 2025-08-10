@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import authService from "../services/authService";
-import axios from "axios";
+import API from "../utils/axios";
 import Loader from "../components/Loader";
 import ProfileCard from "../components/ProfileCard";
 import ProductStatsCard from "../components/ProductStatsCard";
@@ -28,7 +28,7 @@ const Dashboard = () => {
     const fetchDashboard = async () => {
       try {
         const token = await authService.getJWT();
-        const res = await axios.get("/api/dashboard", {
+        const res = await API.get("/api/dashboard", {
           headers: {
             Authorization: `Bearer ${token}`,
           },

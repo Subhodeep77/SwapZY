@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
+import API from "../../utils/axios";
 
 const AdminLoginLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -16,7 +16,7 @@ const AdminLoginLogs = () => {
   const fetchLoginLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/admin/admin-login-log?page=${page}&limit=10`);
+      const res = await API.get(`/api/admin/admin-login-log?page=${page}&limit=10`);
       setLogs(res.data.data || []);
       setTotalPages(res.data.pagination?.totalPages || 1);
     } catch (error) {
@@ -26,10 +26,10 @@ const AdminLoginLogs = () => {
     }
   }, [page]);
 
-  // Fetch the admin ID → name map
+  // Fetch the admin ID → details map
   const fetchAdminMap = useCallback(async () => {
     try {
-      const res = await axios.get("/api/admin/admins/map");
+      const res = await API.get("/api/admin/admins/map");
       setAdminMap(res.data.adminMap || {});
     } catch (err) {
       console.error("Failed to fetch admin name map:", err.message);
@@ -43,7 +43,7 @@ const AdminLoginLogs = () => {
         type === "login"
           ? "/api/admin/admin-login-log/log"
           : "/api/admin/admin-login-log/log-logout";
-      await axios.post(endpoint);
+      await API.post(endpoint);
       await fetchLoginLogs(); // Refresh logs
     } catch (error) {
       console.error(`Failed to log admin ${type}:`, error.message);
@@ -101,19 +101,26 @@ const AdminLoginLogs = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {logs.map((log, idx) => (
-                  <tr key={log._id}>
-                    <td className="px-4 py-2 text-sm text-gray-700">{(page - 1) * 10 + idx + 1}</td>
-                    <td className="px-4 py-2 text-sm text-blue-600">
-                      {adminMap[log.adminAppwriteId] || log.adminAppwriteId}
-                    </td>
-                    <td className="px-4 py-2 text-sm">{log.actionType}</td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{log.description}</td>
-                    <td className="px-4 py-2 text-sm text-gray-500">
-                      {format(new Date(log.timestamp), "dd MMM yyyy, hh:mm a")}
-                    </td>
-                  </tr>
-                ))}
+                {logs.map((log, idx) => {
+                  const adminData = adminMap[log.adminAppwriteId];
+                  return (
+                    <tr key={log._id}>
+                      <td className="px-4 py-2 text-sm text-gray-700">
+                        {(page - 1) * 10 + idx + 1}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-blue-600">
+                        {adminData
+                          ? `${adminData.name}${adminData.email ? ` (${adminData.email})` : ""}`
+                          : log.adminAppwriteId}
+                      </td>
+                      <td className="px-4 py-2 text-sm">{log.actionType}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">{log.description}</td>
+                      <td className="px-4 py-2 text-sm text-gray-500">
+                        {format(new Date(log.timestamp), "dd MMM yyyy, hh:mm a")}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

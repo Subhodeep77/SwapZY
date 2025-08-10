@@ -1,65 +1,78 @@
 // controllers/admin/admins.js
-const sdk = require("node-appwrite");
+const { getAdminServices } = require("../../config/appwrite"); // Use Admin SDK for enrichment
+const User = require("../../models/User");
 
-// 🧠 In-memory cache (expires every 10 minutes)
 let cachedAdminMap = null;
 let lastFetchedTime = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
-const getAdminMap = async () => {
-  const now = Date.now();
-
-  if (cachedAdminMap && now - lastFetchedTime < CACHE_TTL_MS) {
-    return cachedAdminMap;
-  }
-
-  const client = new sdk.Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT)
-    .setProject(process.env.APPWRITE_PROJECT_ID)
-    .setKey(process.env.APPWRITE_API_KEY);
-
-  const databases = new sdk.Databases(client);
-  const DB_ID = process.env.APPWRITE_DATABASE_ID;
-  const USER_COLLECTION_ID = process.env.APPWRITE_USERS_COLLECTION_ID;
+// Refresh the admin map from MongoDB
+const refreshAdminCache = async () => {
+  const admins = await User.find({ role: "ADMIN", isDeleted: false })
+    .select("appwriteId name email")
+    .lean();
 
   const adminMap = {};
-  let allAdmins = [];
-  let offset = 0;
-  const limit = 100;
-
-  while (true) {
-    const response = await databases.listDocuments(DB_ID, USER_COLLECTION_ID, [
-      sdk.Query.equal("role", "ADMIN"),
-      sdk.Query.limit(limit),
-      sdk.Query.offset(offset),
-    ]);
-
-    allAdmins = [...allAdmins, ...response.documents];
-    if (response.documents.length < limit) break;
-    offset += limit;
-  }
-
-  for (const doc of allAdmins) {
-    const id = doc.appwriteId;
-    if (id) {
-      adminMap[id] = doc.name || doc.email || "Unknown Admin";
+  for (const admin of admins) {
+    if (admin.appwriteId) {
+      adminMap[admin.appwriteId] = {
+        name: admin.name || admin.email || "Unknown Admin",
+        email: admin.email || null
+      };
     }
   }
 
   cachedAdminMap = adminMap;
-  lastFetchedTime = now;
+  lastFetchedTime = Date.now();
+  console.log("♻️ Admin cache refreshed manually");
   return adminMap;
 };
 
-// Express controller for GET /api/admins
+const getAdminMap = async () => {
+  const now = Date.now();
+  if (cachedAdminMap && now - lastFetchedTime < CACHE_TTL_MS) {
+    return cachedAdminMap;
+  }
+  return await refreshAdminCache();
+};
+
+// GET /admins — MongoDB for roles, Appwrite for live profile enrichment
 const getAllAdmins = async (req, res) => {
   try {
     const adminMap = await getAdminMap();
-    return res.status(200).json({ success: true, adminMap });
+    const { users } = getAdminServices(); // Admin SDK with API key
+
+    const detailedAdmins = [];
+
+    for (const [appwriteId, mongoData] of Object.entries(adminMap)) {
+      try {
+        const appwriteUser = await users.get(appwriteId);
+        detailedAdmins.push({
+          appwriteId,
+          name: appwriteUser.name || mongoData.name,
+          email: appwriteUser.email || mongoData.email,
+          status: appwriteUser.status,
+          emailVerification: appwriteUser.emailVerification,
+          createdAt: appwriteUser.$createdAt
+        });
+      } catch (err) {
+        // If Appwrite user not found or error, fallback to MongoDB data
+        detailedAdmins.push({
+          appwriteId,
+          name: mongoData.name,
+          email: mongoData.email,
+          status: null,
+          emailVerification: null,
+          createdAt: null
+        });
+      }
+    }
+
+    return res.status(200).json({ success: true, admins: detailedAdmins });
   } catch (error) {
     console.error("Error fetching admins:", error.message);
     return res.status(500).json({ error: "Failed to fetch admins" });
   }
 };
 
-module.exports = { getAllAdmins, getAdminMap };
+module.exports = { getAllAdmins, getAdminMap, refreshAdminCache };

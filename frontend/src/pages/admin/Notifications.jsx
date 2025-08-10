@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../utils/axios";
 import { formatDistanceToNow } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
@@ -14,7 +14,7 @@ const AdminNotifications = () => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await axios.get("/api/admin/notifications");
+      const res = await API.get("/api/admin/notifications");
       setNotifications(res.data.notifications);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -25,7 +25,7 @@ const AdminNotifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      await axios.patch(`/api/admin/notifications/${id}`);
+      await API.patch(`/api/admin/notifications/${id}`);
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, read: true } : n))
       );

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import { useEffect, useState, useCallback } from "react";
+import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
@@ -23,7 +23,7 @@ const AdminUserManagementPage = () => {
         ...(roleFilter && { role: roleFilter }),
       }).toString();
 
-      const res = await axios.get(`/api/admin/users?${query}`);
+      const res = await API.get(`/api/admin/users?${query}`);
       setUsers(res.data.users);
       setTotalPages(res.data.pagination.totalPages);
     } catch (err) {
@@ -39,7 +39,7 @@ const AdminUserManagementPage = () => {
 
   const handleRoleChange = async (appwriteId, newRole) => {
     try {
-      await axios.patch(`/api/admin/users/${appwriteId}`, { role: newRole });
+      await API.patch(`/api/admin/users/${appwriteId}`, { role: newRole });
       setRefreshFlag((prev) => !prev);
     } catch (err) {
       console.error("Error updating user role", err);
@@ -53,7 +53,7 @@ const AdminUserManagementPage = () => {
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      await axios.patch(`/api/admin/users/${appwriteId}/soft-delete`, {
+      await API.patch(`/api/admin/users/${appwriteId}/soft-delete`, {
         isDeleted: !currentStatus,
       });
       setRefreshFlag((prev) => !prev);
@@ -65,7 +65,7 @@ const AdminUserManagementPage = () => {
   // Optional: View individual user details
   const handleViewUser = async (appwriteId) => {
     try {
-      const res = await axios.get(`/api/admin/users/${appwriteId}`);
+      const res = await API.get(`/api/admin/users/${appwriteId}`);
       console.log("User details:", res.data.user);
       // Optionally: open modal/drawer here
     } catch (err) {

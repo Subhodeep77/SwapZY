@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../../utils/axios";
 import Loader from "../../components/Loader";
 
 const ProductViewsDetails = ({ productId }) => {
@@ -9,7 +9,7 @@ const ProductViewsDetails = ({ productId }) => {
   useEffect(() => {
     if (!productId) return;
 
-    axios
+    API
       .get(`/api/admin/product-views/${productId}?page=1&limit=50`)
       .then((res) => setViews(res.data.views || []))
       .catch((err) => console.error("Failed to fetch views:", err))

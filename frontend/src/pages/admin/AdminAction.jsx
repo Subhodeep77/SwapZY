@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
-import { formatDistanceToNow, isAfter, isBefore } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
 import authService from "../../services/authService";
+import API from "../../utils/axios";
 
 const AdminActions = () => {
   const [actions, setActions] = useState([]);
@@ -31,7 +31,7 @@ const AdminActions = () => {
     setLoading(true);
     try {
       const jwt = await authService.getJWT();
-      const { data } = await axios.get(
+      const { data } = await API.get(
         `/api/admin/admin-actions?page=${page}&limit=${limit}`,
         { headers: { Authorization: `Bearer ${jwt}` } }
       );
@@ -45,9 +45,9 @@ const AdminActions = () => {
 
   const fetchAdminMap = useCallback(async () => {
     try {
-      const jwt = await authService.getJWT(); // ✅ Get JWT
-      const res = await axios.get(`/api/admin/admins/map`, {
-        headers: { Authorization: `Bearer ${jwt}` }, // ✅ Set Auth header
+      const jwt = await authService.getJWT();
+      const res = await API.get(`/api/admin/admins/map`, {
+        headers: { Authorization: `Bearer ${jwt}` },
       });
       if (res.data.success) {
         setAdminMap(res.data.adminMap || {});
@@ -69,13 +69,18 @@ const AdminActions = () => {
     fetchActions();
   }, [fetchActions]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [actionType, selectedAdminId, dateFrom, dateTo]);
+
   const filteredActions = actions.filter((action) => {
-    const timestamp = new Date(action.timestamp);
+    const timestamp = new Date(action.createdAt || action.timestamp);
     const matchType = actionType === "ALL" || action.actionType === actionType;
     const matchAdmin =
       selectedAdminId === "ALL" || action.adminAppwriteId === selectedAdminId;
-    const matchFrom = !dateFrom || isAfter(timestamp, new Date(dateFrom));
-    const matchTo = !dateTo || isBefore(timestamp, new Date(dateTo));
+    const matchFrom = !dateFrom || timestamp >= new Date(dateFrom);
+    const matchTo = !dateTo || timestamp <= new Date(dateTo);
     return matchType && matchAdmin && matchFrom && matchTo;
   });
 
@@ -83,7 +88,7 @@ const AdminActions = () => {
     e.preventDefault();
     try {
       const jwt = await authService.getJWT();
-      await axios.post("/api/admin/admin-actions/create", newAction, {
+      await API.post("/api/admin/admin-actions/create", newAction, {
         headers: { Authorization: `Bearer ${jwt}` },
       });
       setShowForm(false);
@@ -93,8 +98,8 @@ const AdminActions = () => {
         description: "",
         affectedId: "",
       });
-      setPage(1); // reset to first page
-      fetchActions(); // refresh list
+      setPage(1);
+      fetchActions();
     } catch (err) {
       console.error("Failed to log action:", err);
     }
@@ -112,7 +117,7 @@ const AdminActions = () => {
           📝 Admin Actions
         </h1>
 
-        {/* Button to show form */}
+        {/* Toggle Form */}
         <div className="mb-6">
           <button
             onClick={() => setShowForm((prev) => !prev)}
@@ -122,7 +127,7 @@ const AdminActions = () => {
           </button>
         </div>
 
-        {/* Log New Action Form */}
+        {/* Form */}
         {showForm && (
           <form
             onSubmit={handleNewActionSubmit}
@@ -258,7 +263,7 @@ const AdminActions = () => {
           </label>
         </div>
 
-        {/* Results */}
+        {/* Table */}
         {loading ? (
           <Loader />
         ) : filteredActions.length === 0 ? (
@@ -291,9 +296,16 @@ const AdminActions = () => {
                     <td className="px-4 py-2 font-medium text-gray-800">
                       {action.actionType}
                     </td>
-                    <td className="px-4 py-2 text-gray-600">
-                      {adminMap[action.adminAppwriteId] ||
-                        action.adminAppwriteId}
+                    <td className="px-4 py-2 text-sm">
+                      <div className="text-blue-600 font-medium">
+                        {adminMap[action.adminAppwriteId]?.name ||
+                          "Unknown Admin"}
+                      </div>
+                      {adminMap[action.adminAppwriteId]?.email && (
+                        <div className="text-gray-500 text-xs">
+                          {adminMap[action.adminAppwriteId].email}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-gray-500">
                       {action.description || "—"}
@@ -302,9 +314,10 @@ const AdminActions = () => {
                       {action.affectedId}
                     </td>
                     <td className="px-4 py-2 text-gray-400">
-                      {formatDistanceToNow(new Date(action.timestamp), {
-                        addSuffix: true,
-                      })}
+                      {formatDistanceToNow(
+                        new Date(action.createdAt || action.timestamp),
+                        { addSuffix: true }
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -2,9 +2,8 @@
 const cron = require("node-cron");
 const AdminDashboardStat = require("../../models/Admin").AdminDashboardStat;
 const Product = require("../../models/Product");
-const { users } = require("../../config/appwrite");
+const { getAdminServices } = require("../../config/appwrite");
 
-// Function to generate daily stats
 const generateDailyStats = async () => {
   try {
     const today = new Date();
@@ -18,12 +17,14 @@ const generateDailyStats = async () => {
       createdAt: { $gte: dateOnly }
     });
 
-    // Fetch users from Appwrite
-    const allUsers = await users.list([], 100); // Fetch max 100 users for now
+    // Fetch all users via admin services
+    const { users } = getAdminServices();
+    const allUsers = await users.list(); // Fetch all users (paginated by default)
     const totalUsers = allUsers.total;
-    const newUsers = allUsers.users.filter(user => new Date(user.$createdAt) >= dateOnly).length;
+    const newUsers = allUsers.users.filter(
+      user => new Date(user.$createdAt) >= dateOnly
+    ).length;
 
-    // You can define activeUsers and views tracking logic later as needed
     const activeUsers = 0;
     const totalViews = 0;
     const mostPopularCategory = await getMostPopularCategory();
@@ -49,7 +50,6 @@ const generateDailyStats = async () => {
   }
 };
 
-// Optional helper: get most popular category (basic version)
 const getMostPopularCategory = async () => {
   const top = await Product.aggregate([
     { $group: { _id: "$category", count: { $sum: 1 } } },
@@ -59,10 +59,8 @@ const getMostPopularCategory = async () => {
   return top[0]?._id || "Unknown";
 };
 
-// Schedule the cron job: Run at midnight daily
 cron.schedule("0 0 * * *", generateDailyStats);
 
-// Optional: manually fetch today's stat
 const getTodayStats = async (req, res) => {
   try {
     const today = new Date();
@@ -76,7 +74,6 @@ const getTodayStats = async (req, res) => {
   }
 };
 
-// controllers/admin/dashboardStats.js (already exported)
 const regenerateStatsManually = async (req, res) => {
   try {
     await generateDailyStats();
@@ -91,15 +88,16 @@ const getLast7DaysStats = async (req, res) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const stats = await AdminDashboardStat.find({ date: { $gte: sevenDaysAgo } }).sort({ date: 1 }).lean();
+    const stats = await AdminDashboardStat.find({ date: { $gte: sevenDaysAgo } })
+      .sort({ date: 1 })
+      .lean();
+
     res.status(200).json({ success: true, stats });
   } catch (error) {
     console.error("Error fetching last 7 days stats:", error.message);
     res.status(500).json({ error: "Failed to fetch stats" });
   }
 };
-
-
 
 module.exports = {
   generateDailyStats,

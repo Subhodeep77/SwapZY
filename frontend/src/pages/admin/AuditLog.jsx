@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import API from "../../utils/axios";
 import { format } from "date-fns";
 import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
@@ -24,7 +24,7 @@ const AuditLogs = () => {
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get("/api/admin/audit-logs", {
+      const { data } = await API.get("/api/admin/audit-logs", {
         params: {
           page: pagination.page,
           limit: pagination.limit,
@@ -100,7 +100,7 @@ const AuditLogs = () => {
         metadata: parsedMetadata,
       };
 
-      await axios.post("/api/admin/audit-logs/create", payload);
+      await API.post("/api/admin/audit-logs/create", payload);
       alert("✅ Audit log created successfully");
 
       setShowForm(false);

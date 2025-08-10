@@ -11,16 +11,17 @@ const {
 const upload = require("../middlewares/cloudinaryUploader");
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
 const isAdmin = require("../middlewares/isAdmin");
+const { userLimiter } = require("../utils/rateLimiter");
 
 router.use(verifyAppwriteToken)
-router.post("/init", upload.single("avatar"), (req, res) => {
+router.post("/init", userLimiter, upload.single("avatar"), (req, res) => {
   console.log("🔥 /init route hit");
   console.log("📦 Request body:", req.body);
   console.log("🖼️ Uploaded avatar file:", req.file);
   initUser(req,res);
 });
 
-router.put("/user/update", upload.single("avatar"), updateUser);
+router.put("/user/update", userLimiter, upload.single("avatar"), updateUser);
 
 router.get("/:appwriteId", getUserByAppwriteId);
 

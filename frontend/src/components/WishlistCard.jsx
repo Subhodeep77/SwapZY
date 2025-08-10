@@ -1,5 +1,4 @@
 // src/components/WishlistCard.jsx
-import React from "react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";

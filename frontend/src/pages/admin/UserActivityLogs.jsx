@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
@@ -33,7 +33,7 @@ const AdminUserActivityLogsPage = () => {
         ...(userIdFilter && { userId: userIdFilter }),
       }).toString();
 
-      const res = await axios.get(`/api/admins/user-activities?${query}`);
+      const res = await API.get(`/api/admins/user-activities?${query}`);
       const logs = res.data.logs || [];
 
       const activityTypes = new Set(logs.map((log) => log.activityType));
@@ -100,7 +100,7 @@ const AdminUserActivityLogsPage = () => {
         metadata: JSON.parse(newLog.metadata || "{}"),
       };
 
-      await axios.post("/api/admins/user-activities/create", payload);
+      await API.post("/api/admins/user-activities/create", payload);
       alert("Activity log created successfully.");
       setNewLog({
         appwriteId: "",

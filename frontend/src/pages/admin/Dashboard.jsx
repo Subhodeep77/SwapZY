@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../utils/axios";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
 import {
@@ -22,8 +22,8 @@ const AdminDashboardStats = () => {
   const fetchStats = async () => {
     try {
       const [todayRes, weeklyRes] = await Promise.all([
-        axios.get("/api/admin/dashboard-stats"),
-        axios.get("/api/admin/dashboard-stats/weekly"),
+        API.get("/api/admin/dashboard-stats"),
+        API.get("/api/admin/dashboard-stats/weekly"),
       ]);
 
       setStats(todayRes.data.stats || null);
@@ -49,7 +49,7 @@ const AdminDashboardStats = () => {
   const handleRegenerateStats = async () => {
     setRegenerating(true);
     try {
-      await axios.post("/api/admin/dashboard-stats/regenerate");
+      await API.post("/api/admin/dashboard-stats/regenerate");
       await fetchStats();
       alert("Stats regenerated successfully.");
     } catch (err) {
