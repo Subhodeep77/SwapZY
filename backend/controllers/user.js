@@ -1,192 +1,167 @@
-// controllers/user.js
-const { cleanupUserProducts } = require("../utils/cleanup");
-const { getUserServices } = require("../config/appwrite");
-const axios = require("axios");
-const sharp = require("sharp");
-const {
-  createUser,
-  getUserByAppwriteId,
-  updateUser,
-  deleteUser,
-} = require("../services/user");
+const User = require("../models/User");
+const { getGravatarUrl } = require("../utils/avatar");
+const cascadeDeleteUser = require("../utils/cascadeDeletion");
 
-// ✅ Util to extract JWT
-const extractJwt = (req) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.split(" ")[1];
-};
-
-async function getAuthenticatedUser(req, res) {
+/**
+ * @desc   Create a new user profile
+ * @route  POST /api/users/init
+ */
+const initUser = async (req, res) => {
   try {
-    const jwt = extractJwt(req);
-    if (!jwt) return res.status(401).json({ error: "Missing or invalid Authorization header" });
-
-    const { users } = getUserServices(jwt);
-    const user = await users.get();
-    return res.json({ user });
-  } catch (err) {
-    console.error("Error fetching user:", err);
-    return res.status(500).json({ error: err.message });
-  }
-}
-
-async function initUserProfile(req, res) {
-  try {
-    const jwt = extractJwt(req);
-    if (!jwt) return res.status(401).json({ error: "Unauthorized" });
-
-    const { name, bio = "", college = "", contact = "" } = req.body;
     const { appwriteId, email } = req.user;
+    const { name, bio = "", college = "", contact = "" } = req.body;
 
-    // Check if user already exists
-    const existingUser = await getUserByAppwriteId(jwt, appwriteId);
-    if (existingUser) {
-      return res.status(409).json({ message: "User profile already exists" });
+    if (!appwriteId || !email) {
+      return res.status(400).json({ message: "Missing appwriteId or email" });
     }
 
-    // 🎨 Get avatar from DiceBear
-    const avatarUrl = `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffd5dc,b6e3f4,c0aede,d1d4f9`;
-    const avatarRes = await axios.get(avatarUrl, { responseType: "arraybuffer" });
+    const existingUser = await User.findOne({ appwriteId });
+    if (existingUser) {
+      return res.status(200).json({ user: existingUser, message: "User already exists" });
+    }
 
-    // 📦 Compress avatar using sharp
-    const compressedBuffer = await sharp(avatarRes.data)
-      .resize(300, 300)
-      .png({ quality: 80 })
-      .toBuffer();
+    const avatarPath = req.file?.path || req.body.avatar || getGravatarUrl(email);
 
-    // 📁 Upload directly using Appwrite SDK
-    const { storage, ID, Permission, Role } = getUserServices(jwt);
-
-    const uploadedAvatar = await storage.createFile(
-      process.env.APPWRITE_BUCKET_ID,
-      ID.unique(),
-      Buffer.from(compressedBuffer),
-      "image/png",
-      [Permission.read(Role.any())]
-    );
-
-    const avatarId = uploadedAvatar.$id;
-
-    // ✅ Create DB user
-    const createdUser = await createUser(jwt, {
+    const newUser = new User({
       appwriteId,
       name,
       email,
-      avatar: avatarId,
+      avatar: avatarPath,
       bio,
       college,
       contact,
     });
 
-    res.status(201).json({
-      message: "User profile created",
-      user: createdUser,
-    });
+    await newUser.save();
+    return res.status(201).json({ user: newUser });
   } catch (error) {
-    console.error("User init failed:", error);
-    res.status(500).json({ error: "Failed to initialize user profile" });
+    console.error("Init user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
-async function deleteUserAccount(req, res) {
+/**
+ * @desc   Update user profile
+ * @route  PUT /api/users/user/update
+ */
+const updateUser = async (req, res) => {
   try {
-    const jwt = extractJwt(req);
-    if (!jwt) return res.status(401).json({ error: "Unauthorized" });
+    const { appwriteId, name, bio, college, contact } = req.body;
+    if (!appwriteId) return res.status(400).json({ message: "Missing appwriteId" });
 
-    const appwriteId = req.user?.appwriteId;
-    if (!appwriteId) {
-      return res.status(401).json({ error: "Unauthorized request" });
+    const user = await User.findOne({ appwriteId });
+    if (!user || user.isDeleted) return res.status(404).json({ message: "User not found" });
+
+    // Update fields
+    if (name !== undefined) user.name = name;
+    if (bio !== undefined) user.bio = bio;
+    if (college !== undefined) user.college = college;
+    if (contact !== undefined) user.contact = contact;
+
+    // Avatar uploaded via multer (Cloudinary)
+    if (req.file?.path) {
+      user.avatar = req.file.path;
     }
 
-    const existingUser = await getUserByAppwriteId(jwt, appwriteId);
-    if (!existingUser || existingUser.isDeleted) {
-      return res.status(404).json({ error: "User not found or already deleted" });
-    }
-
-    // Step 1: Cleanup all related products/images
-    await cleanupUserProducts(appwriteId);
-
-    // Step 2: Delete the user (from both Auth and DB)
-    await deleteUser(jwt, appwriteId);
-
-    return res.status(200).json({ message: "User and data deleted successfully." });
+    await user.save();
+    return res.status(200).json({ user });
   } catch (error) {
-    console.error("User deletion error:", {
-      message: error.message,
-      stack: error.stack,
-    });
-    return res.status(500).json({ error: "Failed to delete user account." });
+    console.error("Error updating user:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
-async function updateUserProfile(req, res) {
+/**
+ * @desc   Get user profile by appwriteId
+ * @route  GET /api/users/:appwriteId
+ */
+const getUserByAppwriteId = async (req, res) => {
   try {
-    const jwt = extractJwt(req);
-    if (!jwt) return res.status(401).json({ error: "Unauthorized" });
+    const { appwriteId } = req.params;
+    const user = await User.findOne({ appwriteId, isDeleted: false });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const appwriteId = req.user?.appwriteId;
-    if (!appwriteId) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    const existingUser = await getUserByAppwriteId(jwt, appwriteId);
-    if (!existingUser || existingUser.isDeleted) {
-      return res.status(404).json({ error: "User not found or access denied (banned)" });
-    }
-
-    const { name, email, avatar, bio, college, contact } = req.body;
-
-    const updateData = {};
-
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (bio) updateData.bio = bio;
-    if (college) updateData.college = college;
-    if (contact) updateData.contact = contact;
-
-    // 🎨 Auto-generate avatar if not provided and name is updated
-    if (!avatar && name) {
-      const avatarUrl = `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(name)}&backgroundColor=ffd5dc,b6e3f4,c0aede,d1d4f9`;
-      const avatarRes = await axios.get(avatarUrl, { responseType: "arraybuffer" });
-
-      const compressedBuffer = await sharp(avatarRes.data)
-        .resize(300, 300)
-        .png({ quality: 80 })
-        .toBuffer();
-
-      const { storage, ID, Permission, Role } = getUserServices(jwt);
-
-      const uploadedAvatar = await storage.createFile(
-        process.env.APPWRITE_BUCKET_ID,
-        ID.unique(),
-        Buffer.from(compressedBuffer),
-        "image/png",
-        [Permission.read(Role.any())]
-      );
-
-      updateData.avatar = uploadedAvatar.$id;
-    } else if (avatar) {
-      updateData.avatar = avatar;
-    }
-
-    const updatedUser = await updateUser(jwt, appwriteId, updateData);
-
-    res.status(200).json({
-      message: "User updated successfully",
-      user: updatedUser,
-    });
+    return res.status(200).json({ user });
   } catch (error) {
-    console.error("Update user error:", error);
-    res.status(500).json({ error: "Failed to update user profile" });
+    console.error("Get user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
+
+/**
+ * @desc   Soft delete user
+ * @route  DELETE /api/users/:appwriteId
+ */
+const softDeleteUser = async (req, res) => {
+  try {
+    const { appwriteId } = req.params;
+    const user = await User.findOneAndUpdate(
+      { appwriteId },
+      { isDeleted: true },
+      { new: true }
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.status(200).json({ message: "User deleted", user });
+  } catch (error) {
+    console.error("Delete user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * @desc   Restore a soft-deleted user
+ * @route  PATCH /api/users/restore/:appwriteId
+ */
+const restoreUser = async (req, res) => {
+  try {
+    const { appwriteId } = req.params;
+
+    const user = await User.findOne({ appwriteId });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.isDeleted) {
+      return res.status(400).json({ message: "User is not deleted" });
+    }
+
+    user.isDeleted = false;
+    await user.save();
+
+    return res.status(200).json({ message: "User restored successfully", user });
+  } catch (error) {
+    console.error("Restore user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+/**
+ * @desc   Permanently delete a user from the database
+ * @route  DELETE /api/users/hard/:appwriteId
+ */
+
+const deleteUser = async (req, res) => {
+  try {
+    const { appwriteId } = req.params;
+
+    const user = await User.findOneAndDelete({ appwriteId });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // 🔥 Cascade delete everything owned by this user
+    await cascadeDeleteUser(appwriteId);
+
+    return res.status(200).json({ message: "User permanently deleted", user });
+  } catch (error) {
+    console.error("Hard delete user failed:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
 
 module.exports = {
-  initUserProfile,
-  deleteUserAccount,
-  updateUserProfile,
-  getAuthenticatedUser,
+  initUser,
+  updateUser,
+  getUserByAppwriteId,
+  softDeleteUser,
+  restoreUser,
+  deleteUser
 };

@@ -8,21 +8,21 @@ const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 const multer = require("multer"); // Needed for error handling
 
-const authRoutes = require("./routes/auth");
+// const authRoutes = require("./routes/auth");
 const dashboardRoutes = require("./routes/dashboard");
-const productRoutes = require("./routes/product");
+//const productRoutes = require("./routes/product");
 const userRoutes = require("./routes/user");
-const wishlistRoutes = require("./routes/wishlist");
-const { globalLimiter } = require("./middlewares/rateLimiter");
-const adminRoutes = require("./routes/admin");
-const orderRoutes = require("./routes/order");
-const chatRoutes = require("./routes/chat");
-const webhookRoutes = require("./routes/webhook");
-const paymentRoutes = require("./routes/payment");
-const validateChatAccess = require("./middlewares/validateChatAccess");
-const registerOrderExpiryCron = require("./services/expireUnpaidOrders")
-const scheduleProductExpiry = require("./services/expireOldProduct");
-const { registerAutoCompleteCron } = require("./controllers/order");
+// const wishlistRoutes = require("./routes/wishlist");
+// const { globalLimiter } = require("./middlewares/rateLimiter");
+// const adminRoutes = require("./routes/admin");
+// const orderRoutes = require("./routes/order");
+// const chatRoutes = require("./routes/chat");
+// const webhookRoutes = require("./routes/webhook");
+// const paymentRoutes = require("./routes/payment");
+// const validateChatAccess = require("./middlewares/validateChatAccess");
+// const registerOrderExpiryCron = require("./services/expireUnpaidOrders")
+// const scheduleProductExpiry = require("./services/expireOldProduct");
+// const { registerAutoCompleteCron } = require("./controllers/order");
 
 
 dotenv.config();
@@ -47,12 +47,12 @@ const io = new Server(httpServer, {
 
 
 app.set("io", io);
-registerOrderExpiryCron(io);
-scheduleProductExpiry(io);
-registerAutoCompleteCron(io);
+// registerOrderExpiryCron(io);
+// scheduleProductExpiry(io);
+// registerAutoCompleteCron(io);
 
 // 🔐 Middleware
-app.use(globalLimiter);
+//app.use(globalLimiter);
 app.use(cors({
   origin: process.env.CLIENT_URL,
   credentials: true
@@ -73,18 +73,18 @@ app.use((err, req, res, next) => {
 
 // 🔗 Routes
 app.get("/", (req, res) => res.send("SwapZY backend running"));
-app.use("/api/auth", authRoutes);
+// app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/products", productRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/wishlist", wishlistRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/order", orderRoutes);
-app.use("/api/chat", chatRoutes);
-app.use("/api/webhook", webhookRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use("/api/categories", require("./routes/category"));
-app.use("/api/user-location", require("./routes/userLocation"));
+// app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
+// app.use("/api/wishlist", wishlistRoutes);
+// app.use("/api/admin", adminRoutes);
+// app.use("/api/order", orderRoutes);
+// app.use("/api/chat", chatRoutes);
+// app.use("/api/webhook", webhookRoutes);
+// app.use("/api/payment", paymentRoutes);
+// app.use("/api/categories", require("./routes/category"));
+// app.use("/api/user-location", require("./routes/userLocation"));
 
 // ⚙️ DB + Server startup
 // ...[unchanged imports and config setup above]...

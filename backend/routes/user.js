@@ -1,40 +1,35 @@
 const express = require("express");
 const router = express.Router();
-const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
-
-// Controllers
 const {
-  initUserProfile,
-  updateUserProfile,
-  deleteUserAccount,
-  getUserByAppwriteId
+  initUser,
+  updateUser,
+  getUserByAppwriteId,
+  softDeleteUser,
+  restoreUser,
+  deleteUser,
 } = require("../controllers/user");
+const upload = require("../middlewares/cloudinaryUploader");
+const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
+const isAdmin = require("../middlewares/isAdmin");
 
-// Middleware to verify JWT
-router.use(verifyAppwriteToken);
-
-// Init user (auto-avatar generation)
-router.post("/init", initUserProfile);
-
-// Update profile (auto-avatar if needed)
-router.post("/update", updateUserProfile);
-
-// Delete user
-router.delete("/delete-account", deleteUserAccount);
-
-// Get own user info
-router.get("/me", async (req, res) => {
-  try {
-    const appwriteId = req.user.appwriteId;
-    const user = await getUserByAppwriteId(req.user.jwt, appwriteId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json(user);
-  } catch (err) {
-    console.error("Error in /me:", err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
+router.use(verifyAppwriteToken)
+router.post("/init", upload.single("avatar"), (req, res) => {
+  console.log("🔥 /init route hit");
+  console.log("📦 Request body:", req.body);
+  console.log("🖼️ Uploaded avatar file:", req.file);
+  initUser(req,res);
 });
 
-console.log("Loaded user routes");
+router.put("/user/update", upload.single("avatar"), updateUser);
+
+router.get("/:appwriteId", getUserByAppwriteId);
+
+router.delete("/:appwriteId", isAdmin, softDeleteUser);
+
+router.patch("/restore/:appwriteId", isAdmin, restoreUser);
+
+router.delete("/hard/:appwriteId", deleteUser);
+
+console.log('Loaded user routes');
 
 module.exports = router;
