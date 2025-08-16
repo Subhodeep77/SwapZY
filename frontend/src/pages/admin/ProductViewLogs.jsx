@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
-import ProductViewDetails from "../../components/admin/ProductViewDetails";
+import ProductViewsDetails from "../../components/admin/ProductViewDetails";
 
 const ProductViewsPage = () => {
   const { productId } = useParams();
@@ -20,7 +20,7 @@ const ProductViewsPage = () => {
         Viewing logs for product ID: <code>{productId}</code>
       </p>
 
-      <ProductViewDetails productId={productId} />
+      <ProductViewsDetails productId={productId} />
     </div>
   );
 };

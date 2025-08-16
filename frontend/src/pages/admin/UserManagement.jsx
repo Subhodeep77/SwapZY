@@ -1,16 +1,19 @@
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
 
 const AdminUserManagementPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(Number(searchParams.get("page")) || 1);
   const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [roleFilter, setRoleFilter] = useState(searchParams.get("role") || "");
   const [refreshFlag, setRefreshFlag] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -37,6 +40,23 @@ const AdminUserManagementPage = () => {
     fetchUsers();
   }, [fetchUsers, refreshFlag]);
 
+  // Sync state to URL params
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page);
+    if (search) {
+      params.set("search", search);
+    } else {
+      params.delete("search");
+    }
+    if (roleFilter) {
+      params.set("role", roleFilter);
+    } else {
+      params.delete("role");
+    }
+    setSearchParams(params);
+  }, [page, search, roleFilter, searchParams, setSearchParams]);
+
   const handleRoleChange = async (appwriteId, newRole) => {
     try {
       await API.patch(`/api/admin/users/${appwriteId}`, { role: newRole });
@@ -53,21 +73,21 @@ const AdminUserManagementPage = () => {
     if (!window.confirm(confirmMessage)) return;
 
     try {
-      await API.patch(`/api/admin/users/${appwriteId}/soft-delete`, {
-        isDeleted: !currentStatus,
-      });
+      if (currentStatus) {
+        await API.patch(`/api/admin/users/${appwriteId}/restore`);
+      } else {
+        await API.patch(`/api/admin/users/${appwriteId}/soft-delete`);
+      }
       setRefreshFlag((prev) => !prev);
     } catch (err) {
       console.error("Error toggling ban status", err);
     }
   };
 
-  // Optional: View individual user details
   const handleViewUser = async (appwriteId) => {
     try {
       const res = await API.get(`/api/admin/users/${appwriteId}`);
       console.log("User details:", res.data.user);
-      // Optionally: open modal/drawer here
     } catch (err) {
       console.error("Error fetching user details", err);
     }

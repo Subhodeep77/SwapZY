@@ -48,7 +48,10 @@ const AdminNotifications = () => {
 
   return (
     <>
-      <PageHelmet title="Admin Notifications" description="View all admin alerts and flagged items in SwapZY." />
+      <PageHelmet
+        title="Admin Notifications"
+        description="View all admin alerts and flagged items in SwapZY."
+      />
       <div className="p-6 max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">🔔 Admin Notifications</h1>
         {loading ? (
@@ -67,15 +70,24 @@ const AdminNotifications = () => {
                   notification.read ? "bg-gray-50" : "bg-white"
                 }`}
               >
-                <div className="flex flex-col gap-1">
-                  <span className={getTypeBadge(notification.type)}>
-                    {notification.type}
-                  </span>
+                <div className="flex flex-col gap-2">
+                  {/* Badge and time in one row */}
+                  <div className="flex items-center gap-2">
+                    <span className={getTypeBadge(notification.type)}>
+                      {notification.type}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {formatDistanceToNow(
+                        new Date(notification.createdAt),
+                        { addSuffix: true }
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Message */}
                   <p className="text-gray-800">{notification.message}</p>
-                  <p className="text-sm text-gray-400">
-                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                  </p>
                 </div>
+
                 {!notification.read && (
                   <button
                     onClick={() => markAsRead(notification._id)}

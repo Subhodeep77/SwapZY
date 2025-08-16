@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
@@ -7,13 +8,9 @@ import Loader from "../../components/Loader";
 const AdminUserActivityLogsPage = () => {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [activityTypeFilter, setActivityTypeFilter] = useState("");
-  const [userIdFilter, setUserIdFilter] = useState("");
-  const [expandedIndexes, setExpandedIndexes] = useState(new Set());
   const [allActivityTypes, setAllActivityTypes] = useState([]);
-
+  const [expandedIndexes, setExpandedIndexes] = useState(new Set());
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newLog, setNewLog] = useState({
     appwriteId: "",
@@ -21,14 +18,40 @@ const AdminUserActivityLogsPage = () => {
     productId: "",
     metadata: "{}",
   });
-
   const [formErrors, setFormErrors] = useState({});
+
+  // ✅ URL params sync
+  const [searchParams, setSearchParams] = useSearchParams();
+  const pageFromUrl = parseInt(searchParams.get("page") || "1", 10);
+  const limitFromUrl = parseInt(searchParams.get("limit") || "50", 10);
+  const activityFromUrl = searchParams.get("activityType") || "";
+  const userIdFromUrl = searchParams.get("userId") || "";
+
+  const [page, setPage] = useState(pageFromUrl);
+  const [limit, setLimit] = useState(limitFromUrl);
+  const [activityTypeFilter, setActivityTypeFilter] = useState(activityFromUrl);
+  const [userIdFilter, setUserIdFilter] = useState(userIdFromUrl);
+
+  // ✅ Prevent double-fetch on first render
+  const firstLoadRef = useRef(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page);
+    params.set("limit", limit);
+    if (activityTypeFilter) params.set("activityType", activityTypeFilter);
+    else params.delete("activityType");
+    if (userIdFilter) params.set("userId", userIdFilter);
+    else params.delete("userId");
+    setSearchParams(params);
+  }, [page, limit, activityTypeFilter, userIdFilter, setSearchParams]);
 
   const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       const query = new URLSearchParams({
         page,
+        limit,
         ...(activityTypeFilter && { activityType: activityTypeFilter }),
         ...(userIdFilter && { userId: userIdFilter }),
       }).toString();
@@ -48,14 +71,16 @@ const AdminUserActivityLogsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, activityTypeFilter, userIdFilter]);
+  }, [page, limit, activityTypeFilter, userIdFilter]);
 
   useEffect(() => {
-    setPage(1);
+    // only reset page when filters change after first load
+    if (!firstLoadRef.current) setPage(1);
   }, [activityTypeFilter, userIdFilter]);
 
   useEffect(() => {
     fetchActivities();
+    firstLoadRef.current = false;
   }, [fetchActivities]);
 
   const handleLoadMore = () => {
@@ -74,11 +99,9 @@ const AdminUserActivityLogsPage = () => {
     if (!newLog.appwriteId.trim()) {
       errors.appwriteId = "Appwrite User ID is required.";
     }
-
     if (!newLog.activityType.trim()) {
       errors.activityType = "Activity Type is required.";
     }
-
     try {
       JSON.parse(newLog.metadata || "{}");
     } catch {
@@ -126,7 +149,7 @@ const AdminUserActivityLogsPage = () => {
       />
       <h1 className="text-2xl font-bold mb-4">User Activity Logs</h1>
 
-      {/* Create Log Toggle Button */}
+      {/* Create Log Button */}
       <div className="mb-4">
         <button
           className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow"
@@ -155,7 +178,9 @@ const AdminUserActivityLogsPage = () => {
                 }
               />
               {formErrors.appwriteId && (
-                <p className="text-red-600 text-sm mt-1">{formErrors.appwriteId}</p>
+                <p className="text-red-600 text-sm mt-1">
+                  {formErrors.appwriteId}
+                </p>
               )}
             </div>
 
@@ -170,7 +195,9 @@ const AdminUserActivityLogsPage = () => {
                 }
               />
               {formErrors.activityType && (
-                <p className="text-red-600 text-sm mt-1">{formErrors.activityType}</p>
+                <p className="text-red-600 text-sm mt-1">
+                  {formErrors.activityType}
+                </p>
               )}
             </div>
 
@@ -195,7 +222,9 @@ const AdminUserActivityLogsPage = () => {
                 }
               />
               {formErrors.metadata && (
-                <p className="text-red-600 text-sm mt-1">{formErrors.metadata}</p>
+                <p className="text-red-600 text-sm mt-1">
+                  {formErrors.metadata}
+                </p>
               )}
             </div>
           </div>
@@ -210,7 +239,7 @@ const AdminUserActivityLogsPage = () => {
       )}
 
       {/* Filters */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-4 gap-4">
         <select
           value={activityTypeFilter}
           onChange={(e) => setActivityTypeFilter(e.target.value)}
@@ -232,11 +261,28 @@ const AdminUserActivityLogsPage = () => {
           onChange={(e) => setUserIdFilter(e.target.value)}
         />
 
+        {/* ✅ New limit selector */}
+        <select
+          value={limit}
+          onChange={(e) => {
+            setLimit(parseInt(e.target.value, 10));
+            setPage(1); // reset page when limit changes
+          }}
+          className="border border-gray-300 rounded px-4 py-2"
+        >
+          {[10, 25, 50, 100].map((n) => (
+            <option key={n} value={n}>
+              {n} per page
+            </option>
+          ))}
+        </select>
+
         <button
           className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded"
           onClick={() => {
             setActivityTypeFilter("");
             setUserIdFilter("");
+            setLimit(50); // reset limit
             setPage(1);
           }}
         >
