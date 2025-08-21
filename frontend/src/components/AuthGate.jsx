@@ -1,30 +1,59 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../services/authService";
-import axios from "axios";
+import API from "../utils/axios";
 import Loader from "../components/Loader";
+import PageHelmet from "../components/PageHelmet";
 
-const AuthGate = ({ children }) => {
+const AuthGate = ({ children, roles = [] }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+
+  // ✅ If no roles are passed, default to USER
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const allowedRoles = roles.length === 0 ? ["USER"] : roles;
 
   useEffect(() => {
     const checkUserProfile = async () => {
       try {
+        // 1. Appwrite session
+        const appwriteUser = await authService.getCurrentUser();
+        if (!appwriteUser) {
+          console.warn("No Appwrite session, redirecting to login...");
+          return navigate("/login");
+        }
+
+        const appwriteId = appwriteUser.$id;
         const token = await authService.getJWT();
 
-        const res = await axios.get("/api/users/me", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        // 2. Fetch DB user
+        const res = await API.get(`/api/users/${appwriteId}`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (!res.data || !res.data.appwriteId) {
-          navigate("/profile/init");
+        const dbUser = res.data?.user;
+        if (!dbUser) {
+          console.warn("No user profile in DB, redirecting...");
+          return navigate("/profile/init");
         }
-      // eslint-disable-next-line no-unused-vars
+
+        // ✅ 3. Role check (supports multiple roles per user now)
+        const userRoles = Array.isArray(dbUser.roles)
+          ? dbUser.roles
+          : [dbUser.role]; // fallback for old schema
+
+        const hasAccess = userRoles.some((role) =>
+          allowedRoles.includes(role)
+        );
+
+        if (!hasAccess) {
+          console.warn(
+            `Unauthorized. Allowed: ${allowedRoles}, user roles: ${userRoles}`
+          );
+          return navigate("/unauthorized");
+        }
       } catch (err) {
-        console.warn("User profile not found, redirecting to init");
+        console.warn("Error verifying user:", err);
         navigate("/profile/init");
       } finally {
         setLoading(false);
@@ -32,24 +61,29 @@ const AuthGate = ({ children }) => {
     };
 
     checkUserProfile();
-  }, [navigate]);
+  }, [navigate, allowedRoles]);
 
-  useEffect(() => {
-    document.title = loading ? "Checking user profile..." : "SwapZY Dashboard";
-    const meta = document.querySelector("meta[name='description']");
-    if (meta) {
-      meta.setAttribute(
-        "content",
-        loading
-          ? "Verifying your account..."
-          : "Dashboard access to manage your orders, products, and chats."
-      );
-    }
-  }, [loading]);
+  if (loading) {
+    return (
+      <>
+        <PageHelmet
+          title="Checking user profile..."
+          description="Verifying your account..."
+        />
+        <Loader />
+      </>
+    );
+  }
 
-  if (loading) return <Loader />;
-
-  return children;
+  return (
+    <>
+      <PageHelmet
+        title="SwapZY Dashboard"
+        description="Dashboard access to manage your orders, products, and chats."
+      />
+      {children}
+    </>
+  );
 };
 
 export default AuthGate;

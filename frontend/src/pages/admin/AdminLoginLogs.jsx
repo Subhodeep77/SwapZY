@@ -3,6 +3,12 @@ import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
 import API from "../../utils/axios";
+import authService from "../../services/authService";
+
+const getAuthHeaders = async () => {
+  const token = await authService.getJWT(); // <-- your function that fetches Appwrite JWT
+  return { Authorization: `Bearer ${token}` };
+};
 
 const AdminLoginLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -15,8 +21,11 @@ const AdminLoginLogs = () => {
   // Fetch the login logs
   const fetchLoginLogs = useCallback(async () => {
     try {
+      const headers = await getAuthHeaders();
       setLoading(true);
-      const res = await API.get(`/api/admin/admin-login-log?page=${page}&limit=10`);
+      const res = await API.get(
+        `/api/admin/admin-login-log?page=${page}&limit=10`,{headers}
+      );
       setLogs(res.data.data || []);
       setTotalPages(res.data.pagination?.totalPages || 1);
     } catch (error) {
@@ -29,7 +38,8 @@ const AdminLoginLogs = () => {
   // Fetch the admin ID → details map
   const fetchAdminMap = useCallback(async () => {
     try {
-      const res = await API.get("/api/admin/admins/map");
+      const headers = await getAuthHeaders();
+      const res = await API.get("/api/admin/admins/map",{headers});
       setAdminMap(res.data.adminMap || {});
     } catch (err) {
       console.error("Failed to fetch admin name map:", err.message);
@@ -38,12 +48,13 @@ const AdminLoginLogs = () => {
 
   const handleManualLog = async (type) => {
     try {
+      const headers = await getAuthHeaders();
       setPosting(true);
       const endpoint =
         type === "login"
           ? "/api/admin/admin-login-log/log"
           : "/api/admin/admin-login-log/log-logout";
-      await API.post(endpoint);
+      await API.post(endpoint,{},{headers});
       await fetchLoginLogs(); // Refresh logs
     } catch (error) {
       console.error(`Failed to log admin ${type}:`, error.message);
@@ -93,11 +104,21 @@ const AdminLoginLogs = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">#</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Admin</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Action</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Description</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Timestamp</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+                    #
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+                    Admin
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+                    Action
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+                    Timestamp
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -110,13 +131,20 @@ const AdminLoginLogs = () => {
                       </td>
                       <td className="px-4 py-2 text-sm text-blue-600">
                         {adminData
-                          ? `${adminData.name}${adminData.email ? ` (${adminData.email})` : ""}`
+                          ? `${adminData.name}${
+                              adminData.email ? ` (${adminData.email})` : ""
+                            }`
                           : log.adminAppwriteId}
                       </td>
                       <td className="px-4 py-2 text-sm">{log.actionType}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{log.description}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600">
+                        {log.description}
+                      </td>
                       <td className="px-4 py-2 text-sm text-gray-500">
-                        {format(new Date(log.timestamp), "dd MMM yyyy, hh:mm a")}
+                        {format(
+                          new Date(log.timestamp),
+                          "dd MMM yyyy, hh:mm a"
+                        )}
                       </td>
                     </tr>
                   );

@@ -1,13 +1,14 @@
 // src/components/ProductStatsCard.jsx
-import React from "react";
 import { motion } from "framer-motion";
 
 const MotionSec = motion.section;
 
 const StatItem = ({ label, value }) => (
   <div className="flex flex-col items-center px-2 py-3">
-    <p className="text-sm text-gray-500">{label}</p>
-    <p className="text-lg font-bold text-blue-700">{value}</p>
+    <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+    <p className="text-lg font-bold text-blue-700 dark:text-blue-400">
+      {value}
+    </p>
   </div>
 );
 
@@ -17,12 +18,12 @@ const ProductStatsCard = ({ stats }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="bg-white rounded-2xl shadow-md p-4 w-full"
+      className="bg-white/80 dark:bg-gray-800/80 rounded-2xl shadow-md p-4 w-full hover:shadow-blue-500/20" 
       aria-labelledby="product-stats-heading"
     >
       <h2
         id="product-stats-heading"
-        className="text-lg font-semibold mb-4 text-gray-800"
+        className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100"
       >
         📊 Product Statistics
       </h2>

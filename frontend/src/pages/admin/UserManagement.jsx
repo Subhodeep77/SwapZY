@@ -4,6 +4,13 @@ import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
+import authService from "../../services/authService";
+import { useNavigate } from "react-router-dom";
+
+const getAuthHeaders = async () => {
+  const token = await authService.getJWT(); // <-- your function that fetches Appwrite JWT
+  return { Authorization: `Bearer ${token}` };
+};
 
 const AdminUserManagementPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -25,8 +32,8 @@ const AdminUserManagementPage = () => {
         ...(search && { search }),
         ...(roleFilter && { role: roleFilter }),
       }).toString();
-
-      const res = await API.get(`/api/admin/users?${query}`);
+      const headers = await getAuthHeaders();
+      const res = await API.get(`/api/admin/users?${query}`, { headers });
       setUsers(res.data.users);
       setTotalPages(res.data.pagination.totalPages);
     } catch (err) {
@@ -59,7 +66,12 @@ const AdminUserManagementPage = () => {
 
   const handleRoleChange = async (appwriteId, newRole) => {
     try {
-      await API.patch(`/api/admin/users/${appwriteId}`, { role: newRole });
+      const headers = await getAuthHeaders();
+      await API.patch(
+        `/api/admin/users/${appwriteId}`,
+        { role: newRole },
+        { headers }
+      );
       setRefreshFlag((prev) => !prev);
     } catch (err) {
       console.error("Error updating user role", err);
@@ -73,10 +85,19 @@ const AdminUserManagementPage = () => {
     if (!window.confirm(confirmMessage)) return;
 
     try {
+      const headers = await getAuthHeaders();
       if (currentStatus) {
-        await API.patch(`/api/admin/users/${appwriteId}/restore`);
+        await API.patch(
+          `/api/admin/users/${appwriteId}/restore`,
+          {},
+          { headers }
+        );
       } else {
-        await API.patch(`/api/admin/users/${appwriteId}/soft-delete`);
+        await API.patch(
+          `/api/admin/users/${appwriteId}/soft-delete`,
+          {},
+          { headers }
+        );
       }
       setRefreshFlag((prev) => !prev);
     } catch (err) {
@@ -84,9 +105,12 @@ const AdminUserManagementPage = () => {
     }
   };
 
+  const navigate = useNavigate();
   const handleViewUser = async (appwriteId) => {
     try {
-      const res = await API.get(`/api/admin/users/${appwriteId}`);
+      const headers = await getAuthHeaders();
+      const res = await API.get(`/api/admin/users/${appwriteId}`, { headers });
+      navigate(`/admin/user-profile/${appwriteId}`);
       console.log("User details:", res.data.user);
     } catch (err) {
       console.error("Error fetching user details", err);

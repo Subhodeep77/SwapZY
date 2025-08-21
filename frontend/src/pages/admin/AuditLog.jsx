@@ -3,6 +3,7 @@ import API from "../../utils/axios";
 import { format } from "date-fns";
 import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
+import authService from "../../services/authService";
 
 const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -21,8 +22,14 @@ const AuditLogs = () => {
     metadata: "{}",
   });
 
+  const getAuthHeaders = async () => {
+    const token = await authService.getJWT(); // <-- your function that fetches Appwrite JWT
+    return { Authorization: `Bearer ${token}` };
+  };
+
   const fetchLogs = useCallback(async () => {
     try {
+      const headers = await getAuthHeaders();
       setLoading(true);
       const { data } = await API.get("/api/admin/audit-logs", {
         params: {
@@ -31,6 +38,7 @@ const AuditLogs = () => {
           actionType: search.action || undefined,
           performedBy: search.adminId || undefined,
         },
+        headers
       });
       setLogs(data.logs || []);
       setPagination((prev) => ({ ...prev, total: data.total || 0 }));
@@ -95,12 +103,13 @@ const AuditLogs = () => {
     }
 
     try {
+      const headers = await getAuthHeaders();
       const payload = {
         ...newLog,
         metadata: parsedMetadata,
       };
 
-      await API.post("/api/admin/audit-logs/create", payload);
+      await API.post("/api/admin/audit-logs/create", payload,{headers});
       alert("✅ Audit log created successfully");
 
       setShowForm(false);

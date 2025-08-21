@@ -4,6 +4,13 @@ import API from "../../utils/axios";
 import { format } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
+import authService from "../../services/authService";
+
+const getAuthHeaders = async () => {
+    const token = await authService.getJWT(); // <-- your function that fetches Appwrite JWT
+    return { Authorization: `Bearer ${token}` };
+  };
+
 
 const AdminUserActivityLogsPage = () => {
   const [activities, setActivities] = useState([]);
@@ -44,10 +51,11 @@ const AdminUserActivityLogsPage = () => {
     if (userIdFilter) params.set("userId", userIdFilter);
     else params.delete("userId");
     setSearchParams(params);
-  }, [page, limit, activityTypeFilter, userIdFilter, setSearchParams]);
+  }, [page, limit, activityTypeFilter, userIdFilter, setSearchParams, searchParams]);
 
   const fetchActivities = useCallback(async () => {
     try {
+      const headers = await getAuthHeaders();
       setLoading(true);
       const query = new URLSearchParams({
         page,
@@ -56,7 +64,7 @@ const AdminUserActivityLogsPage = () => {
         ...(userIdFilter && { userId: userIdFilter }),
       }).toString();
 
-      const res = await API.get(`/api/admins/user-activities?${query}`);
+      const res = await API.get(`/api/admin/user-activities?${query}`,{headers});
       const logs = res.data.logs || [];
 
       const activityTypes = new Set(logs.map((log) => log.activityType));
@@ -116,6 +124,7 @@ const AdminUserActivityLogsPage = () => {
     if (!validateForm()) return;
 
     try {
+      const headers = await getAuthHeaders();
       const payload = {
         appwriteId: newLog.appwriteId,
         activityType: newLog.activityType,
@@ -123,7 +132,7 @@ const AdminUserActivityLogsPage = () => {
         metadata: JSON.parse(newLog.metadata || "{}"),
       };
 
-      await API.post("/api/admins/user-activities/create", payload);
+      await API.post("/api/admin/user-activities/create", payload,{headers});
       alert("Activity log created successfully.");
       setNewLog({
         appwriteId: "",

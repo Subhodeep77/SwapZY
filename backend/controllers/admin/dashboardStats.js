@@ -62,17 +62,23 @@ const getMostPopularCategory = async () => {
 cron.schedule("0 0 * * *", generateDailyStats);
 
 const getTodayStats = async (req, res) => {
+  console.log("🟡 [getTodayStats] Called by user:", req.user);
   try {
     const today = new Date();
     const dateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
+    console.log("📅 [getTodayStats] Looking for stats with date:", dateOnly);
+
     const stats = await AdminDashboardStat.findOne({ date: dateOnly }).lean();
+    console.log("✅ [getTodayStats] Stats found:", stats);
+
     res.status(200).json({ success: true, stats });
   } catch (error) {
-    console.error("Fetch stats error:", error.message);
+    console.error("❌ [getTodayStats] Error:", error.message);
     res.status(500).json({ error: "Failed to fetch today's stats" });
   }
 };
+
 
 const regenerateStatsManually = async (req, res) => {
   try {

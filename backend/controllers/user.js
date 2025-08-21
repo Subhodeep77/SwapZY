@@ -77,6 +77,9 @@ const updateUser = async (req, res) => {
  */
 const getUserByAppwriteId = async (req, res) => {
   try {
+    console.log("👉 URL:", req.originalUrl);
+    console.log("👉 Params:", req.params);
+    console.log("👉 Query:", req.query);
     const { appwriteId } = req.params;
     const user = await User.findOne({ appwriteId, isDeleted: false });
     if (!user) return res.status(404).json({ message: "User not found" });

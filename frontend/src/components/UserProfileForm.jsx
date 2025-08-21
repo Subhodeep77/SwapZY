@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import authService from "../services/authService";
 import API from "../utils/axios.js";
+import { useNavigate } from "react-router-dom";
 
 // Toast notification component
 const Toast = ({ message, type, onClose }) => {
@@ -72,7 +73,7 @@ const UserProfileForm = () => {
     contact: "",
     avatar: null,
   });
-
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [toasts, setToasts] = useState([]);
@@ -213,7 +214,7 @@ const UserProfileForm = () => {
       formPayload.append("contact", formData.contact.trim());
 
       if (formData.avatar) {
-        console.log(formData.avatar)
+        console.log(formData.avatar);
         formPayload.append("avatar", formData.avatar);
       }
 
@@ -225,16 +226,14 @@ const UserProfileForm = () => {
       });
 
       if (!response.ok) {
-        console.log("response",response);
+        console.log("response", response);
       }
 
-      
       console.log("✅ Profile created:", response);
       showToast("Profile created successfully! 🎉", "success");
-
-      // Optional: Reset form or redirect
-      // setFormData({ name: "", bio: "", college: "", contact: "", avatar: null });
-      // setAvatarPreview(null);
+      setTimeout(() => {
+        navigate("/"); // or navigate("/home") depending on your route
+      }, 1500);
     } catch (err) {
       console.error("🔥 Profile Creation Error:", err);
 

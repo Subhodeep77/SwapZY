@@ -1,9 +1,11 @@
 const Product = require("../models/Product");
 const Wishlist = require("../models/Wishlist");
-
+const User = require("../models/User");
 async function getDashboard(req, res) {
   try {
     const userId = req.user.appwriteId;
+    console.log("user:", req.user);
+    const userDoc = await User.findOne({ appwriteId: userId }).select("avatar college");
 
     // Basic Product Metrics
     const [totalProducts, availableProducts, soldProducts, expiredProducts] = await Promise.all([
@@ -88,6 +90,8 @@ async function getDashboard(req, res) {
         name: req.user.name,
         email: req.user.email,
         appwriteId: userId,
+        avatarUrl: userDoc?.avatar || "", 
+        college: userDoc?.college || "", 
       },
       productStats: {
         total: totalProducts,

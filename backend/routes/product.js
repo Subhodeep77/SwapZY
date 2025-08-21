@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const verifyAppwriteToken = require("../middlewares/verifyAppwriteToken");
 const parseLocation = require("../middlewares/parseLocation");
-const { createProduct, deleteProduct, updateProduct, bulkUpload, bulkDelete, getNearbyProduct, getAllProduct, getMyProduct, getProductById, markStatus } = require("../controllers/product");
+const { createProduct, deleteProduct, updateProduct, bulkUpload, bulkDelete, getNearbyProduct, getMyProduct, getProductById, markStatus } = require("../controllers/product");
 const multer = require('multer');
 const path = require('path');
 const optionalAppwriteToken = require("../middlewares/optionalAppwriteToken");
@@ -67,11 +67,11 @@ router.get(
   getNearbyProduct.getNearbyProducts
 );
 
-router.get(
-  "/all",
-  optionalAppwriteToken,
-  getAllProduct.getAllProducts
-);
+// router.get(
+//   "/all",
+//   optionalAppwriteToken,
+//   getAllProduct.getAllProducts
+// );
 
 router.get(
   "/mine",

@@ -29,7 +29,7 @@ const CategoryBreakdownChart = ({ data }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-gray-900 p-4 rounded-2xl shadow-md w-full"
+      className="bg-white/80 dark:bg-gray-800/80 p-4 rounded-2xl shadow-md hover:shadow-blue-500/20 w-full"
       aria-label="Product categories breakdown"
     >
       <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">

@@ -1,6 +1,6 @@
-const createProduct = require('./createProduct');
-const deleteProduct = require('./deleteProduct');
-const updateProduct = require('./updateProduct');
+// const createProduct = require('./createProduct');
+// const deleteProduct = require('./deleteProduct');
+// const updateProduct = require('./updateProduct');
 const bulkUpload = require('./bulkUpload');
 const bulkDelete = require('./bulkDelete');
 const getNearbyProduct = require('./getNearbyProducts');

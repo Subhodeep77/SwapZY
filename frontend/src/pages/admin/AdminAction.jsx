@@ -4,6 +4,7 @@ import Loader from "../../components/Loader";
 import PageHelmet from "../../components/PageHelmet";
 import authService from "../../services/authService";
 import API from "../../utils/axios";
+import mascotImg from "../../assets/swapzy_mascot.png";
 
 const AdminActions = () => {
   const [actions, setActions] = useState([]);
@@ -269,9 +270,9 @@ const AdminActions = () => {
         ) : filteredActions.length === 0 ? (
           <div className="text-center py-16">
             <img
-              src="/mascot-empty.svg"
+              src={mascotImg}
               alt="No logs"
-              className="w-40 mx-auto mb-4"
+              className="w-40 mx-auto mb-4 rounded-xl"
             />
             <p className="text-gray-500 text-lg">No admin actions found.</p>
           </div>

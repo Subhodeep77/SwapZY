@@ -9,6 +9,7 @@ const {
   getUserDetailsByAppwriteId,
   updateUserByAdmin,
   softDeleteUserByAppwriteId,
+  restoreUserByAppwriteId
 } = require("../../controllers/admin/userManagement");
 
 // ✅ Get all users (paginated)
@@ -22,5 +23,8 @@ router.patch("/:appwriteId", verifyAppwriteToken, isAdmin, updateUserByAdmin);
 
 // ✅ Soft-delete a user
 router.patch("/:appwriteId/soft-delete", verifyAppwriteToken, isAdmin, softDeleteUserByAppwriteId);
+
+// ✅ Restore a soft-deleted user
+router.patch("/:appwriteId/restore", verifyAppwriteToken, isAdmin, restoreUserByAppwriteId);
 
 module.exports = router;

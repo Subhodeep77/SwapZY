@@ -3,6 +3,7 @@ import API from "../../utils/axios";
 import { formatDistanceToNow } from "date-fns";
 import PageHelmet from "../../components/PageHelmet";
 import Loader from "../../components/Loader";
+import authService from "../../services/authService";
 
 const AdminNotifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -10,11 +11,19 @@ const AdminNotifications = () => {
 
   useEffect(() => {
     fetchNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const getAuthHeaders = async () => {
+    const token = await authService.getJWT(); // <-- your function that fetches Appwrite JWT
+    return { Authorization: `Bearer ${token}` };
+  };
+
 
   const fetchNotifications = async () => {
     try {
-      const res = await API.get("/api/admin/notifications");
+      const headers = await getAuthHeaders();
+      const res = await API.get("/api/admin/notifications",{headers});
       setNotifications(res.data.notifications);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -25,7 +34,8 @@ const AdminNotifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      await API.patch(`/api/admin/notifications/${id}`);
+      const headers = await getAuthHeaders();
+      await API.patch(`/api/admin/notifications/${id}`,{headers});
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, read: true } : n))
       );

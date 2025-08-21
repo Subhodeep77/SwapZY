@@ -7,7 +7,10 @@ const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const logProductView = async (req, res) => {
   try {
     const { productId, viewerAppwriteId } = req.body;
-    const ip = req.ip;
+    const ip =
+      req.headers["x-forwarded-for"]?.split(",")[0] ||
+      req.ip ||
+      req.connection?.remoteAddress;
     const userAgent = req.headers["user-agent"];
 
     if (!productId) {
@@ -56,22 +59,39 @@ const logProductView = async (req, res) => {
   }
 };
 
-// 📊 Get paginated views for a product
+// 📊 Get paginated views for a product (optimized with aggregation)
 const getViewsByProduct = async (req, res) => {
   try {
     const { productId } = req.params;
-    const page = parseInt(req.query.page) || 1;
+    let page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 100;
+
+    // Ensure page is at least 1
+    page = Math.max(page, 1);
     const skip = (page - 1) * limit;
 
-    const [views, total] = await Promise.all([
-      ProductView.find({ productId })
-        .sort({ viewedAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      ProductView.countDocuments({ productId }),
+    const result = await ProductView.aggregate([
+      { $match: { productId } },
+      {
+        $facet: {
+          views: [
+            { $sort: { viewedAt: -1 } },
+            { $skip: skip },
+            { $limit: limit }
+          ],
+          totalCount: [
+            { $count: "count" }
+          ]
+        }
+      }
     ]);
+
+    const views = result[0]?.views || [];
+    const total = result[0]?.totalCount?.[0]?.count || 0;
+
+    // Clamp page to the last possible page if it’s too large
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+    if (totalPages > 0 && page > totalPages) page = totalPages;
 
     res.status(200).json({
       success: true,
@@ -80,7 +100,7 @@ const getViewsByProduct = async (req, res) => {
         total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
+        totalPages,
       },
     });
   } catch (error) {
@@ -88,6 +108,8 @@ const getViewsByProduct = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch product views" });
   }
 };
+
+
 
 module.exports = {
   logProductView,

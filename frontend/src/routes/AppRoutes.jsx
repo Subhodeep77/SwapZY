@@ -16,7 +16,8 @@ import HomeFeed from "../pages/product/HomeFeed";
 import NotFound from "../components/404";
 import TestApi from "../pages/TestApi";
 import TestSocket from "../pages/TestSocket";
-
+import Unauthorized from "../pages/Unauthorized";
+import UserProfile from "../pages/UserProfile";
 const AppRoutes = () => {
   return (
     <Router>
@@ -25,10 +26,11 @@ const AppRoutes = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/profile/init" element={<UserProfileForm />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
         <Route
           path="/dashboard"
           element={
-            <AuthGate>
+            <AuthGate  roles={["ADMIN","USER"]}>
               <Dashboard />
             </AuthGate>
           }
@@ -86,6 +88,14 @@ const AppRoutes = () => {
           element={
             <AuthGate roles={["ADMIN"]}>
               <AdminUserManagementPage />
+            </AuthGate>
+          }
+        />
+        <Route
+          path="/admin/user-profile/:appwriteId"
+          element={
+            <AuthGate roles={["ADMIN"]}>
+              <UserProfile />
             </AuthGate>
           }
         />

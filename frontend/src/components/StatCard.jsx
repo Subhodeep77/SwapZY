@@ -12,7 +12,7 @@ const StatCard = ({ title, value, icon = null, compact = false }) => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className={`bg-white dark:bg-gray-900 rounded-2xl shadow-md hover:shadow-blue-500/20 dark:hover:shadow-blue-400/20 transition-shadow duration-300 w-full flex items-center justify-between ${
+      className={`bg-white/80 dark:bg-gray-800/80 rounded-2xl shadow-md hover:shadow-blue-500/20 dark:hover:shadow-blue-400/20 transition-shadow duration-300 w-full flex items-center justify-between ${
         compact ? "p-3" : "p-4"
       }`}
       aria-label={`${title} stat card`}
