@@ -136,7 +136,7 @@ const AuditLogs = () => {
         description="View all admin audit logs with filters and metadata"
       />
 
-      <div className="p-6">
+      <div className="p-6 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors">
         <h1 className="text-2xl font-semibold mb-4">Audit Logs</h1>
 
         {/* Create Button */}
@@ -151,7 +151,7 @@ const AuditLogs = () => {
 
         {/* Create Log Form */}
         {showForm && (
-          <div className="bg-gray-100 p-4 rounded mb-6 space-y-4">
+           <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded mb-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input
                 type="text"
@@ -159,13 +159,13 @@ const AuditLogs = () => {
                 placeholder="Actor Appwrite ID"
                 value={newLog.actorAppwriteId}
                 onChange={(e) => setNewLog({ ...newLog, actorAppwriteId: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               <select
                 name="actorRole"
                 value={newLog.actorRole}
                 onChange={(e) => setNewLog({ ...newLog, actorRole: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="ADMIN">ADMIN</option>
                 <option value="USER">USER</option>
@@ -176,7 +176,7 @@ const AuditLogs = () => {
                 placeholder="Action (e.g., USER_BANNED)"
                 value={newLog.action}
                 onChange={(e) => setNewLog({ ...newLog, action: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               <input
                 type="text"
@@ -184,7 +184,7 @@ const AuditLogs = () => {
                 placeholder="Target Collection"
                 value={newLog.targetCollection}
                 onChange={(e) => setNewLog({ ...newLog, targetCollection: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               <input
                 type="text"
@@ -192,14 +192,14 @@ const AuditLogs = () => {
                 placeholder="Target ID"
                 value={newLog.targetId}
                 onChange={(e) => setNewLog({ ...newLog, targetId: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               />
               <textarea
                 name="metadata"
                 placeholder='Metadata (JSON format) — e.g., {"reason":"spam"}'
                 value={newLog.metadata}
                 onChange={(e) => setNewLog({ ...newLog, metadata: e.target.value })}
-                className="border px-3 py-2 rounded w-full"
+                className="border px-3 py-2 rounded w-full dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                 rows={4}
               />
             </div>
@@ -220,7 +220,7 @@ const AuditLogs = () => {
             value={search.adminId}
             onChange={handleSearchChange}
             placeholder="Filter by Admin ID"
-            className="border rounded px-3 py-2 w-64"
+            className="border rounded px-3 py-2 w-64 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
           <input
             type="text"
@@ -228,7 +228,7 @@ const AuditLogs = () => {
             value={search.action}
             onChange={handleSearchChange}
             placeholder="Filter by Action"
-            className="border rounded px-3 py-2 w-64"
+            className="border rounded px-3 py-2 w-64 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           />
           <button
             onClick={() => setPagination((prev) => ({ ...prev, page: 1 }))}
@@ -242,37 +242,37 @@ const AuditLogs = () => {
           <Loader />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border">
-              <thead className="bg-gray-100">
+            <table className="min-w-full bg-white dark:bg-gray-800 border dark:border-gray-700">
+              <thead className="bg-gray-100 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-2 border">Admin ID</th>
-                  <th className="px-4 py-2 border">Action</th>
-                  <th className="px-4 py-2 border">Target</th>
-                  <th className="px-4 py-2 border">Timestamp</th>
-                  <th className="px-4 py-2 border">IP</th>
-                  <th className="px-4 py-2 border">User Agent</th>
-                  <th className="px-4 py-2 border">Meta</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">Admin ID</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">Action</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">Target</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">Timestamp</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">IP</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">User Agent</th>
+                  <th className="px-4 py-2 border dark:border-gray-600">Meta</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log._id}>
-                    <td className="px-4 py-2 border">{log.actorAppwriteId}</td>
-                    <td className="px-4 py-2 border">{log.action}</td>
-                    <td className="px-4 py-2 border">{log.targetId}</td>
-                    <td className="px-4 py-2 border">
+                  <tr key={log._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-4 py-2 border dark:border-gray-600">{log.actorAppwriteId}</td>
+                    <td className="px-4 py-2 border dark:border-gray-600">{log.action}</td>
+                    <td className="px-4 py-2 border dark:border-gray-600">{log.targetId}</td>
+                    <td className="px-4 py-2 border dark:border-gray-600">
                       {log.timestamp
                         ? format(new Date(log.timestamp), "yyyy-MM-dd HH:mm")
                         : "-"}
                     </td>
-                    <td className="px-4 py-2 border">{log.ip || "-"}</td>
-                    <td className="px-4 py-2 border max-w-[200px] truncate">
+                    <td className="px-4 py-2 border dark:border-gray-600">{log.ip || "-"}</td>
+                    <td className="px-4 py-2 border max-w-[200px] truncate dark:border-gray-600">
                       {log.userAgent || "-"}
                     </td>
-                    <td className="px-4 py-2 border">
+                    <td className="px-4 py-2 border dark:border-gray-600">
                       <button
                         onClick={() => toggleRow(log._id)}
-                        className="text-sm text-blue-600 underline"
+                        className="text-sm text-blue-600 dark:text-blue-400 underline"
                       >
                         {expandedRows[log._id] ? "Hide" : "Show"}
                       </button>
@@ -283,10 +283,13 @@ const AuditLogs = () => {
             </table>
 
             {/* Meta viewer */}
-            {logs.map(
+             {logs.map(
               (log) =>
                 expandedRows[log._id] && (
-                  <div key={`meta-${log._id}`} className="bg-gray-100 p-4 my-2 rounded">
+                  <div
+                    key={`meta-${log._id}`}
+                    className="bg-gray-100 dark:bg-gray-800 p-4 my-2 rounded border dark:border-gray-700"
+                  >
                     <pre className="text-sm whitespace-pre-wrap">
                       {JSON.stringify(log.metadata || {}, null, 2)}
                     </pre>
@@ -299,17 +302,17 @@ const AuditLogs = () => {
               <button
                 onClick={handlePrev}
                 disabled={pagination.page === 1}
-                className="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-2 rounded disabled:opacity-50"
+                className="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-2 rounded disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
               >
                 Previous
               </button>
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit) || 1}
               </span>
               <button
                 onClick={handleNext}
                 disabled={pagination.page * pagination.limit >= pagination.total}
-                className="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-2 rounded disabled:opacity-50"
+                className="bg-gray-200 hover:bg-gray-300 text-sm px-4 py-2 rounded disabled:opacity-50 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white"
               >
                 Next
               </button>

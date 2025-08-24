@@ -12,10 +12,11 @@ const isAdmin = require("../../middlewares/isAdmin");
 // ✅ Log Admin Login
 router.post("/log", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
-    const { $id: adminAppwriteId } = req.user;
+    console.log("req from log:",req.user);
+    const adminAppwriteId = req.user.appwriteId;
     const adminMap = await getAdminMap();
-    const name = adminMap[adminAppwriteId] || "Unknown Admin";
-
+    const name = req.user.name || "Unknown Admin";
+    console.log("name:",name);
     await createAdminAction({
       adminAppwriteId,
       actionType: "ADMIN_LOGIN",
@@ -33,10 +34,12 @@ router.post("/log", verifyAppwriteToken, isAdmin, async (req, res) => {
 // ✅ Log Admin Logout
 router.post("/log-logout", verifyAppwriteToken, isAdmin, async (req, res) => {
   try {
-    const { $id: adminAppwriteId } = req.user;
+    console.log("req from log-logout:",req.user);
+    const adminAppwriteId = req.user.appwriteId;
     const adminMap = await getAdminMap();
-    const name = adminMap[adminAppwriteId] || "Unknown Admin";
-
+    const name = req.user.name || "Unknown Admin";
+    console.log("name:",name);
+    
     await createAdminAction({
       adminAppwriteId,
       actionType: "ADMIN_LOGOUT",

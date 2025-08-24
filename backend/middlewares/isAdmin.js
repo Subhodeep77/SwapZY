@@ -2,12 +2,12 @@ const { getUserServices } = require("../config/appwrite");
 const User = require("../models/User"); // MongoDB user model
 
 const isAdmin = async (req, res, next) => {
-  console.log("🟡 [isAdmin] Incoming request:", req.method, req.originalUrl);
+  //console.log("🟡 [isAdmin] Incoming request:", req.method, req.originalUrl);
 
   try {
     const authHeader = req.headers["authorization"];
     const jwt = authHeader?.startsWith("Bearer ") ? authHeader.split("Bearer ")[1] : null;
-    console.log("🔐 [isAdmin] Extracted JWT:", jwt);
+    //console.log("🔐 [isAdmin] Extracted JWT:", jwt);
 
     if (!jwt) {
       console.warn("⛔ [isAdmin] No JWT found in headers.");
@@ -16,7 +16,7 @@ const isAdmin = async (req, res, next) => {
 
     const { account } = getUserServices(jwt);
     const appwriteUser = await account.get();
-    console.log("✅ [isAdmin] Appwrite user fetched:", appwriteUser);
+    //console.log("✅ [isAdmin] Appwrite user fetched:", appwriteUser);
 
     if (!appwriteUser || !appwriteUser.$id) {
       console.warn("⛔ [isAdmin] Invalid Appwrite user");
@@ -24,7 +24,7 @@ const isAdmin = async (req, res, next) => {
     }
 
     const mongoUser = await User.findOne({ appwriteId: appwriteUser.$id }).lean();
-    console.log("✅ [isAdmin] MongoDB user fetched:", mongoUser);
+    //console.log("✅ [isAdmin] MongoDB user fetched:", mongoUser);
 
     if (!mongoUser) {
       console.warn("⛔ [isAdmin] User not found in MongoDB:", appwriteUser.$id);

@@ -17,7 +17,7 @@ import NotFound from "../components/404";
 import TestApi from "../pages/TestApi";
 import TestSocket from "../pages/TestSocket";
 import Unauthorized from "../pages/Unauthorized";
-import UserProfile from "../pages/UserProfile";
+import UserProfile from "../pages/admin/UserProfile";
 const AppRoutes = () => {
   return (
     <Router>

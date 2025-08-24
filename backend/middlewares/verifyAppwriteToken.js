@@ -13,15 +13,15 @@ const verifyAppwriteToken = async (req, res, next) => {
 
   try {
     console.log("🔐 Received JWT:", token);
-    console.log(
-      "📛 Using Appwrite Project ID:",
-      process.env.APPWRITE_PROJECT_ID
-    );
-    console.log("🌐 Using Appwrite Endpoint:", process.env.APPWRITE_ENDPOINT);
+    // console.log(
+    //   "📛 Using Appwrite Project ID:",
+    //   process.env.APPWRITE_PROJECT_ID
+    // );
+    //console.log("🌐 Using Appwrite Endpoint:", process.env.APPWRITE_ENDPOINT);
     const { account } = getUserServices(token);
     const user = await account.get();
-    console.log("User fetched:", user);
-    console.log("✅ Token valid, user:", user);
+    //console.log("User fetched:", user);
+    //console.log("✅ Token valid, user:", user);
     if (!user?.email) {
       return res.status(401).json({ error: "Invalid or expired token" });
     }
