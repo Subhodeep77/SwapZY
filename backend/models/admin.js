@@ -9,6 +9,8 @@ const auditLogSchema = new mongoose.Schema({
   targetCollection: { type: String, required: true },
   targetId: { type: String, required: true },
   metadata: { type: mongoose.Schema.Types.Mixed },
+  ip: { type: String },
+  userAgent: { type: String },
   timestamp: { type: Date, default: Date.now },
 });
 
