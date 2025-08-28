@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const {
   getRecentUserActivities,
-  createUserActivityLog
+  createUserActivityLog,
+  deleteAllUserActivityLogs,
+  deleteUserActivityLogById
 } = require("../../controllers/admin/userActivityLog");
 
 const verifyAppwriteToken = require("../../middlewares/verifyAppwriteToken");
@@ -19,5 +21,9 @@ router.post("/create", verifyAppwriteToken, isAdmin, async (req, res) => {
     res.status(500).json({ error: "Failed to create activity log" });
   }
 });
+
+router.delete("/", verifyAppwriteToken, isAdmin, deleteAllUserActivityLogs);
+
+router.delete("/:id", verifyAppwriteToken, isAdmin, deleteUserActivityLogById);
 
 module.exports = router;

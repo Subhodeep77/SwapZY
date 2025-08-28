@@ -26,7 +26,7 @@ const AdminDashboardStats = () => {
     return { Authorization: `Bearer ${token}` };
   };
 
-const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const headers = await getAuthHeaders();
 
@@ -87,10 +87,15 @@ const fetchStats = useCallback(async () => {
   const MetricCard = ({ color, label, value }) => (
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition p-6 flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
-        <span className={`w-3 h-3 rounded-full`} style={{ backgroundColor: color }}></span>
+        <span
+          className={`w-3 h-3 rounded-full`}
+          style={{ backgroundColor: color }}
+        ></span>
         <h2 className="text-sm text-gray-500">{label}</h2>
       </div>
-      <p className="text-2xl font-bold" style={{ color }}>{value}</p>
+      <p className="text-2xl font-bold" style={{ color }}>
+        {value}
+      </p>
     </div>
   );
 
@@ -100,7 +105,9 @@ const fetchStats = useCallback(async () => {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-semibold">Today's Dashboard Stats</h1>
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-gray-100">
+          Today's Dashboard Stats
+        </h1>
         <button
           onClick={handleRegenerateStats}
           disabled={regenerating}
@@ -112,35 +119,92 @@ const fetchStats = useCallback(async () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <MetricCard color="#4f46e5" label="Total Users" value={stats.totalUsers} />
-        <MetricCard color="#06b6d4" label="New Users Today" value={stats.newUsers} />
-        <MetricCard color="#16a34a" label="Total Products" value={stats.totalProducts} />
-        <MetricCard color="#f97316" label="New Products Today" value={stats.newProducts} />
-        <MetricCard color="#9333ea" label="Active Users" value={stats.activeUsers || 0} />
-        <MetricCard color="#ec4899" label="Total Views" value={stats.totalViews || 0} />
-        <MetricCard color="#2563eb" label="Most Popular Category" value={stats.mostPopularCategory || "N/A"} />
+        <MetricCard
+          color="#4f46e5"
+          label="Total Users"
+          value={stats.totalUsers}
+        />
+        <MetricCard
+          color="#06b6d4"
+          label="New Users Today"
+          value={stats.newUsers}
+        />
+        <MetricCard
+          color="#16a34a"
+          label="Total Products"
+          value={stats.totalProducts}
+        />
+        <MetricCard
+          color="#f97316"
+          label="New Products Today"
+          value={stats.newProducts}
+        />
+        <MetricCard
+          color="#9333ea"
+          label="Active Users"
+          value={stats.activeUsers || 0}
+        />
+        <MetricCard
+          color="#ec4899"
+          label="Total Views"
+          value={stats.totalViews || 0}
+        />
+        <MetricCard
+          color="#2563eb"
+          label="Most Popular Category"
+          value={stats.mostPopularCategory || "N/A"}
+        />
       </div>
 
       {/* Weekly Graph */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <h2 className="text-lg font-semibold mb-4 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+        <h2 className="text-lg font-semibold mb-4 text-center text-gray-900 dark:text-gray-100">
           Last 7 Days Overview
         </h2>
         {weeklyStats.length === 0 ? (
-          <p className="text-center text-gray-500">No weekly data available.</p>
+          <p className="text-center text-gray-500 dark:text-gray-400">
+            No weekly data available.
+          </p>
         ) : (
           <div className="w-full h-[320px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={weeklyStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#d1d5db" />
+                <XAxis dataKey="date" stroke="#9ca3af" />
+                <YAxis allowDecimals={false} stroke="#9ca3af" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1f2937",
+                    color: "#f9fafb",
+                  }}
+                  labelStyle={{ color: "#f9fafb" }}
+                  itemStyle={{ color: "#f9fafb" }}
+                />
                 <Legend />
-                <Line type="monotone" dataKey="totalUsers" stroke="#4f46e5" strokeWidth={2} />
-                <Line type="monotone" dataKey="totalProducts" stroke="#16a34a" strokeWidth={2} />
-                <Line type="monotone" dataKey="newUsers" stroke="#06b6d4" strokeWidth={2} />
-                <Line type="monotone" dataKey="newProducts" stroke="#f97316" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="totalUsers"
+                  stroke="#4f46e5"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="totalProducts"
+                  stroke="#16a34a"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="newUsers"
+                  stroke="#06b6d4"
+                  strokeWidth={2}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="newProducts"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
